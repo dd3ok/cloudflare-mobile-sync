@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Mobile Sync Example",
+    "slug": "cloudflare-mobile-sync-example",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "scheme": "cloudflare-mobile-sync",
+    "userInterfaceStyle": "light",
+    "plugins": ["expo-secure-store"],
+    "ios": {
+      "bundleIdentifier": "dev.example.cloudflaremobilesync",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "dev.example.cloudflaremobilesync"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
