@@ -14,7 +14,7 @@ The HTTP protocol is platform-neutral. Expo SDK 57 is the first adapter, while p
 - Local-first Expo example that works before login and syncs only on request
 - Workers-runtime integration tests including cross-user and deletion failures
 
-Provider sign-in is implemented but still needs real provider applications, registered callbacks, and device testing before production use. No Cloudflare resource or OAuth application has been created or deployed by this repository.
+Provider sign-in is implemented but still needs real provider applications, registered callbacks, and device testing before production use. The owner account now has an empty production D1 database and a `workers.dev` account subdomain; no Worker code, migration, secret, or OAuth application has been deployed.
 
 ## Workspace
 

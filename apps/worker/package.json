@@ -6,8 +6,8 @@
   "scripts": {
     "build": "wrangler deploy --dry-run --outdir dist",
     "dev": "wrangler dev",
-    "migrate:local": "wrangler d1 migrations apply cloudflare-mobile-sync --local",
-    "migrate:remote": "wrangler d1 migrations apply cloudflare-mobile-sync --remote",
+    "migrate:local": "wrangler d1 migrations apply DB --local",
+    "migrate:remote": "wrangler d1 migrations apply cloudflare-mobile-sync-prod --remote",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "types": "wrangler types"

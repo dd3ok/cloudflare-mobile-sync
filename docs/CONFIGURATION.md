@@ -29,8 +29,23 @@ Cloudflare token in a file. For CI, use a narrowly scoped API token stored in th
 CI provider's secret store. Never add either Cloudflare value to a mobile app.
 
 Production non-secret values and Cloudflare resource bindings remain explicit in
-`apps/worker/wrangler.jsonc`. Production secrets are added with `wrangler secret
-put`; no production secrets file is committed or required.
+`apps/worker/wrangler.jsonc`. Copy `apps/worker/.env.production.example` to the
+ignored `apps/worker/.env.production` file for the first deployment. Wrangler
+uploads those values as encrypted Worker secrets when the file is passed with
+`--secrets-file`; the real file must never be committed.
+
+The prepared owner deployment uses:
+
+```text
+Worker origin: https://cloudflare-mobile-sync.ponntailstudio.workers.dev
+D1 database: cloudflare-mobile-sync-prod
+D1 binding: DB
+```
+
+The D1 ID and public Worker origin are deployment configuration, not credentials.
+`BETTER_AUTH_SECRET`, `BETTER_AUTH_SECRETS`, and provider credentials remain
+secret. Wrangler validates the two required Better Auth secret names before a
+deployment can succeed.
 
 ## Consuming Expo app
 
@@ -66,3 +81,9 @@ Wrangler does not provide a general zone-list command. To inspect managed
 domains, open the Cloudflare dashboard and select **Websites** from the account
 home. Every active zone listed there is a domain managed by that account. A
 Worker Custom Domain must be a hostname under one of those zones.
+
+As of 2026-07-20, the authenticated owner account has no managed zones. Its
+account subdomain is `ponntailstudio.workers.dev`, so the prepared Worker origin
+is `https://cloudflare-mobile-sync.ponntailstudio.workers.dev`. A future custom
+domain can replace this after a zone is added and all OAuth callbacks and
+consumer URLs are updated together.

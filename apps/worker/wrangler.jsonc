@@ -4,11 +4,13 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-07-20",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "cloudflare-mobile-sync",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_name": "cloudflare-mobile-sync-prod",
+      "database_id": "c0abc067-9ffa-4eb6-9496-d7117ccac23a",
       "migrations_dir": "migrations"
     }
   ],
@@ -22,9 +24,12 @@
       }
     }
   ],
+  "secrets": {
+    "required": ["BETTER_AUTH_SECRET", "BETTER_AUTH_SECRETS"]
+  },
   "vars": {
     "ALLOWED_COLLECTIONS": "notes",
-    "BETTER_AUTH_URL": "http://localhost:8787",
+    "BETTER_AUTH_URL": "https://cloudflare-mobile-sync.ponntailstudio.workers.dev",
     "TRUSTED_ORIGINS": "cloudflare-mobile-sync://"
   }
 }

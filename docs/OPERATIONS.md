@@ -2,7 +2,9 @@
 
 Reviewed: 2026-07-20
 
-This is a CLI-first self-hosted starter. The commands below describe owner actions; they have not been run against production resources by this repository.
+This is a CLI-first self-hosted starter. The owner account subdomain and an empty
+production D1 database were created on 2026-07-20. No migration, Worker code,
+secret, or OAuth application has been deployed.
 
 ## Local development
 
@@ -54,10 +56,14 @@ From the repository root:
 
 ```bash
 pnpm --filter @cloudflare-mobile-sync/worker exec wrangler login
-pnpm --filter @cloudflare-mobile-sync/worker exec wrangler d1 create cloudflare-mobile-sync
+pnpm --filter @cloudflare-mobile-sync/worker exec wrangler d1 create cloudflare-mobile-sync-prod
 ```
 
-Replace the placeholder `database_id` in `apps/worker/wrangler.jsonc` with the returned ID. Also choose a rate-limit `namespace_id` unique within the Cloudflare account, set the production `BETTER_AUTH_URL`, exact `TRUSTED_ORIGINS`, and the deployment's collection allowlist.
+For this owner account, that resource already exists and its returned ID is
+committed in `apps/worker/wrangler.jsonc`. The account had no other Workers when
+rate-limit `namespace_id` `1001` was selected. A different adopter must create a
+separate D1 database, replace the committed ID, and verify that the namespace ID
+is unique in their account.
 
 Use an environment-specific database name such as
 `cloudflare-mobile-sync-prod`. Keep the binding name `DB`; portable Worker code
@@ -73,32 +79,44 @@ Domain, add the following top-level configuration with the real hostname:
 The minimum production values then become:
 
 ```text
-BETTER_AUTH_URL=https://sync.example.com
+BETTER_AUTH_URL=https://cloudflare-mobile-sync.ponntailstudio.workers.dev
 TRUSTED_ORIGINS=my-app://
 ALLOWED_COLLECTIONS=notes
-EXPO_PUBLIC_MOBILE_SYNC_URL=https://sync.example.com
-EXPO_PUBLIC_MOBILE_SYNC_PROVIDERS=google
+EXPO_PUBLIC_MOBILE_SYNC_URL=https://cloudflare-mobile-sync.ponntailstudio.workers.dev
+EXPO_PUBLIC_MOBILE_SYNC_PROVIDERS=
 ```
+
+Change the last value to `google` only after its Worker credentials and provider
+callback have been configured and verified.
 
 `BETTER_AUTH_URL`, `TRUSTED_ORIGINS`, and `ALLOWED_COLLECTIONS` are non-secret
 Worker configuration. Provider credentials and Better Auth keys are Worker
 secrets. Never put a provider secret in an `EXPO_PUBLIC_*` value.
 
-Generate high-entropy secrets outside the repository. For a new installation, use the same initial value for `BETTER_AUTH_SECRET` and version 1 of `BETTER_AUTH_SECRETS`; the latter makes new encrypted values rotation-aware:
+Generate high-entropy secrets outside the repository. Copy
+`apps/worker/.env.production.example` to the ignored `.env.production` file. For
+a new installation, use the same initial value for `BETTER_AUTH_SECRET` and
+version 1 of `BETTER_AUTH_SECRETS`; the latter makes new encrypted values
+rotation-aware. Add provider credentials only after registering their callbacks.
 
-```bash
-pnpm --filter @cloudflare-mobile-sync/worker exec wrangler secret put BETTER_AUTH_SECRET
-pnpm --filter @cloudflare-mobile-sync/worker exec wrangler secret put BETTER_AUTH_SECRETS
-pnpm --filter @cloudflare-mobile-sync/worker exec wrangler secret put GOOGLE_CLIENT_ID
-pnpm --filter @cloudflare-mobile-sync/worker exec wrangler secret put GOOGLE_CLIENT_SECRET
+```powershell
+cd apps/worker
+Copy-Item .env.production.example .env.production
 ```
 
-Add only the Kakao or Naver secrets for providers being enabled. Then apply migrations before deploying code that needs them:
+On macOS or Linux, use `cp` instead of `Copy-Item`. Keep the file only on the
+trusted deployment machine. Then apply migrations before deploying code that
+needs them, and upload the initial secrets atomically with the Worker code:
 
 ```bash
 pnpm --filter @cloudflare-mobile-sync/worker migrate:remote
-pnpm --filter @cloudflare-mobile-sync/worker exec wrangler deploy
+pnpm --filter @cloudflare-mobile-sync/worker exec wrangler deploy --secrets-file .env.production
 ```
+
+The first command changes the remote database and the second publishes the
+Worker. Review both commands before running them. Subsequent secret changes can
+use Wrangler's versioned secret commands or another atomic deployment; plain
+`wrangler secret put` immediately creates and deploys a Worker version.
 
 Verify `/health`, an unauthenticated rejection, provider callbacks, a two-user isolation test, mutation replay, account deletion, and provider-console unlink state after deployment.
 

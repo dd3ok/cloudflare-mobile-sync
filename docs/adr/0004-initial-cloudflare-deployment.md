@@ -1,0 +1,46 @@
+# ADR 0004: Prepare the first Cloudflare deployment on workers.dev
+
+Status: accepted
+
+Reviewed: 2026-07-20
+
+## Context
+
+At decision time, the authenticated owner account had no Cloudflare zones, D1
+databases, or Workers. A stable HTTPS origin is needed before OAuth callbacks and
+consuming applications can be configured. Buying or transferring a domain is not
+required for the first end-to-end verification.
+
+## Decision
+
+- Create the account subdomain `ponntailstudio.workers.dev`.
+- Prepare the Worker at
+  `https://cloudflare-mobile-sync.ponntailstudio.workers.dev`.
+- Create the isolated D1 database `cloudflare-mobile-sync-prod` in APAC and keep
+  the Worker binding name `DB`.
+- Keep one top-level Wrangler deployment configuration. Local development
+  overrides runtime values through the ignored `.dev.vars` file.
+- Disable preview URLs because this project has no preview deployment workflow.
+- Require the two Better Auth secret bindings and upload initial secrets together
+  with the first Worker deployment.
+- Do not apply remote migrations or deploy Worker code until the owner explicitly
+  starts the deployment step.
+
+## Consequences
+
+This is the smallest deployment shape: one Worker and one D1 database, with no
+KV, R2, Queue, Durable Object, staging Worker, or custom-domain dependency. The
+`workers.dev` origin is public and suitable for the initial verification, but
+Cloudflare recommends a Worker Custom Domain or route for business-critical
+production use. Adding a custom domain later requires updating Better Auth,
+consumer app URLs, and every provider callback together.
+
+The D1 database ID is account-specific but is not a credential. Secrets remain
+outside Git in an ignored file and are encrypted by Cloudflare when uploaded.
+
+## Sources
+
+- [Cloudflare Workers routes and domains](https://developers.cloudflare.com/workers/configuration/routing/)
+- [Cloudflare workers.dev routing](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/)
+- [Cloudflare Workers secrets](https://developers.cloudflare.com/workers/configuration/secrets/)
+- [Cloudflare D1 migrations](https://developers.cloudflare.com/d1/reference/migrations/)
