@@ -43,7 +43,13 @@ Copy `apps/worker/.dev.vars.example` to `apps/worker/.dev.vars` and replace plac
 pnpm --filter @cloudflare-mobile-sync/expo-app dev
 ```
 
-The Expo example needs `EXPO_PUBLIC_SYNC_URL`; copy `examples/expo-app/.env.example` to `.env` and use an address reachable from the selected simulator or device. OAuth callbacks require an Expo development build with the compiled `cloudflare-mobile-sync` scheme. Expo Go is not a valid OAuth verification target.
+The Expo example needs `EXPO_PUBLIC_MOBILE_SYNC_URL`; copy
+`examples/expo-app/.env.example` to `.env.local` and use an address reachable
+from the selected simulator or device. Leave
+`EXPO_PUBLIC_MOBILE_SYNC_PROVIDERS` empty for local-only use, then set it to
+`google` after Google credentials are configured on the Worker. OAuth callbacks
+require an Expo development build with the compiled `cloudflare-mobile-sync`
+scheme. Expo Go is not a valid OAuth verification target.
 
 ## Quality commands
 
@@ -57,7 +63,10 @@ pnpm security:audit
 pnpm check
 ```
 
-See [API](./docs/API.md), [operations](./docs/OPERATIONS.md), [provider setup](./docs/PROVIDERS.md), [security model](./docs/SECURITY.md), and [research baseline](./docs/RESEARCH.md).
+See [configuration](./docs/CONFIGURATION.md), [API](./docs/API.md),
+[operations](./docs/OPERATIONS.md), [provider setup](./docs/PROVIDERS.md),
+[security model](./docs/SECURITY.md), and
+[research baseline](./docs/RESEARCH.md).
 
 ## Deliberate limits
 

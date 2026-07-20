@@ -11,7 +11,7 @@ This is a CLI-first self-hosted starter. The commands below describe owner actio
 3. Copy `apps/worker/.dev.vars.example` to `apps/worker/.dev.vars` and replace placeholders. The file is ignored by Git.
 4. Apply the committed migrations with `pnpm --filter @cloudflare-mobile-sync/worker migrate:local`.
 5. Start the API with `pnpm --filter @cloudflare-mobile-sync/worker dev`.
-6. Copy `examples/expo-app/.env.example` to `.env`, choose a reachable Worker URL, and start an Expo development build with `pnpm --filter @cloudflare-mobile-sync/expo-app dev`.
+6. Copy `examples/expo-app/.env.example` to `.env.local`, choose a reachable Worker URL, and start an Expo development build with `pnpm --filter @cloudflare-mobile-sync/expo-app dev`.
 
 `127.0.0.1` works for the web preview and normally for the iOS simulator. Android Emulator commonly reaches the host through `10.0.2.2`. A physical device needs a LAN or HTTPS development URL reachable from that device. Stable mobile OAuth callbacks require a development build; do not use Expo Go for the provider verification gate.
 
@@ -76,7 +76,8 @@ The minimum production values then become:
 BETTER_AUTH_URL=https://sync.example.com
 TRUSTED_ORIGINS=my-app://
 ALLOWED_COLLECTIONS=notes
-EXPO_PUBLIC_SYNC_URL=https://sync.example.com
+EXPO_PUBLIC_MOBILE_SYNC_URL=https://sync.example.com
+EXPO_PUBLIC_MOBILE_SYNC_PROVIDERS=google
 ```
 
 `BETTER_AUTH_URL`, `TRUSTED_ORIGINS`, and `ALLOWED_COLLECTIONS` are non-secret

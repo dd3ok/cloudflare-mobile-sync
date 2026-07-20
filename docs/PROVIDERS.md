@@ -18,6 +18,12 @@ For a deployed Worker origin `https://sync.example.com`, register these exact pr
 
 Set `BETTER_AUTH_URL=https://sync.example.com` without the `/v1/auth` suffix. Put the app scheme or universal-link origin in `TRUSTED_ORIGINS`; do not use a wildcard credentialed origin.
 
+Keep the consuming app's public provider list aligned with the server. Leave it
+empty for local-only use, set `EXPO_PUBLIC_MOBILE_SYNC_PROVIDERS=google` after
+Google Worker secrets are configured, then append `kakao` and `naver` only after
+their secrets and real-device verification are complete. This value controls UI
+exposure only and is not an authorization boundary.
+
 ## Google
 
 Create a web OAuth client, register the exact Worker callback, and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` as Worker secrets. The adapter requests `openid`, `email`, and `profile` and uses Better Auth's maintained Google provider.

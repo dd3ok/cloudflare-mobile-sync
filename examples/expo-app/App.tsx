@@ -13,10 +13,21 @@ import {
   View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { authClient, syncBaseUrl, syncClient } from "./src/clients";
+import {
+  authClient,
+  enabledProviders,
+  type ProviderId,
+  syncBaseUrl,
+  syncClient,
+} from "./src/clients";
 import { AccountMismatchError, LocalNotesStore } from "./src/local-notes";
 
 const notesStore = new LocalNotesStore();
+const providerLabels: Readonly<Record<ProviderId, string>> = {
+  google: "Google",
+  kakao: "Kakao",
+  naver: "Naver",
+};
 
 interface ActionButtonProps {
   label: string;
@@ -92,7 +103,7 @@ function AppContent() {
     });
   }
 
-  function signIn(provider: "google" | "kakao" | "naver"): void {
+  function signIn(provider: ProviderId): void {
     void run(async () => {
       const callbackURL = createExpoCallbackUrl("auth/callback");
       const result =
@@ -298,23 +309,22 @@ function AppContent() {
             <Text style={styles.mutedText}>
               Provider credentials stay on the Worker. The app receives only the session cookie.
             </Text>
-            <View style={styles.providerList}>
-              <ActionButton
-                label="Continue with Google"
-                onPress={() => signIn("google")}
-                disabled={busy}
-              />
-              <ActionButton
-                label="Continue with Kakao"
-                onPress={() => signIn("kakao")}
-                disabled={busy}
-              />
-              <ActionButton
-                label="Continue with Naver"
-                onPress={() => signIn("naver")}
-                disabled={busy}
-              />
-            </View>
+            {enabledProviders.length === 0 ? (
+              <Text style={styles.mutedText}>
+                No sign-in provider is enabled. Local-only notes remain available.
+              </Text>
+            ) : (
+              <View style={styles.providerList}>
+                {enabledProviders.map((provider) => (
+                  <ActionButton
+                    key={provider}
+                    label={`Continue with ${providerLabels[provider]}`}
+                    onPress={() => signIn(provider)}
+                    disabled={busy}
+                  />
+                ))}
+              </View>
+            )}
           </>
         )}
       </View>

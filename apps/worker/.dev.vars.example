@@ -1,11 +1,18 @@
+# Worker-only local configuration. Copy this file to `.dev.vars` in this
+# directory. Never copy these values into a consuming app.
+ALLOWED_COLLECTIONS=notes
+BETTER_AUTH_URL=http://localhost:8787
+TRUSTED_ORIGINS=cloudflare-mobile-sync://
+
+# Server-only secrets. Replace the placeholders locally; `.dev.vars` is ignored.
 BETTER_AUTH_SECRET=replace-with-at-least-32-random-bytes
 # Use the same value at version 1 on a new install. Put the newest version first when rotating.
 BETTER_AUTH_SECRETS=1:replace-with-at-least-32-random-bytes
 
-# Add a provider only when both values are available.
-GOOGLE_CLIENT_ID=placeholder
-GOOGLE_CLIENT_SECRET=placeholder
-KAKAO_CLIENT_ID=placeholder
-KAKAO_CLIENT_SECRET=placeholder
-NAVER_CLIENT_ID=placeholder
-NAVER_CLIENT_SECRET=placeholder
+# Uncomment a provider only when both real values are available.
+# GOOGLE_CLIENT_ID=replace-with-google-client-id
+# GOOGLE_CLIENT_SECRET=replace-with-google-client-secret
+# KAKAO_CLIENT_ID=replace-with-kakao-client-id
+# KAKAO_CLIENT_SECRET=replace-with-kakao-client-secret
+# NAVER_CLIENT_ID=replace-with-naver-client-id
+# NAVER_CLIENT_SECRET=replace-with-naver-client-secret
