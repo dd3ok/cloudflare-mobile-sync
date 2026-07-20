@@ -129,14 +129,31 @@ DELETE /v1/account
 3. Local Worker/D1 authorization, conflict, replay, tombstone, pagination, oversized input, and deletion tests pass.
 4. The Expo example provides persistent guest notes, optional manual sync, explicit conflict resolution, and local-data preservation after remote account deletion.
 5. Real Google/Kakao/Naver credentials, provider-console callbacks, iOS/Android development builds, and production Cloudflare resources remain owner-controlled verification work.
-6. Package publication, repository visibility, license, retention/reset protocol, and additional platform SDKs remain deferred decisions.
+6. The v1 retention, publication, conflict, and account-linking policies below are accepted. Real-provider/device verification and additional platform SDKs remain deferred.
 
-## Decisions deliberately deferred
+## Accepted v1 lifecycle policies
 
-- Final package scope and npm publication
-- Public repository visibility and open-source license
+- Retain tombstones and change history indefinitely. Do not add pruning until
+  measured storage pressure justifies both a retention window and an explicit
+  stale-device reset/snapshot protocol.
+- Keep the repository and all workspace packages private and unpublished, with no
+  open-source license. Reconsider publication only after one real host app and the
+  supported providers pass end-to-end verification.
+- Resolve conflicts with an explicit record-level choice: keep the local value or
+  accept the server value. Do not auto-merge opaque JSON or add field-level merge
+  rules in v1.
+- Allow provider linking only from an authenticated session followed by fresh
+  provider proof. Never link by matching email, and never unlink the last login
+  method. A user who wants to remove every login method uses complete account
+  deletion.
+
+## Features deliberately deferred
+
 - Cloudflare one-click deployment versus CLI-first installation
 - R2/KV/Queues/Durable Objects; add only when a measured requirement exists
 - Realtime push subscriptions
+- Tombstone pruning and stale-device snapshots
+- Automatic or field-level conflict merging
+- A dedicated provider-link management UI
 - Flutter, Swift, Android, and web SDKs
 - Running a shared hosted service

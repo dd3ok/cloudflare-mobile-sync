@@ -65,4 +65,7 @@ This is not Firebase, a CRDT engine, a shared multi-tenant SaaS, or a realtime s
 
 ## License
 
-No open-source license has been selected. Make that decision before changing repository visibility or publishing packages.
+V1 distribution policy is private and unpublished: every workspace package has
+`private: true`, and no open-source license is selected. Reconsider visibility,
+licensing, and npm publication only after a real host app and the supported OAuth
+providers pass end-to-end verification.
