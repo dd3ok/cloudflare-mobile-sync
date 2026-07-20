@@ -1,5 +1,7 @@
 # Architecture baseline
 
+Status: implemented locally; provider/device verification and owner deployment remain.
+
 ## Product model
 
 Cloudflare Mobile Sync is distributed as code. Each adopter deploys an independent Worker and D1 database to an account they control. The project does not operate a central shared service and does not receive adopter or end-user secrets.
@@ -24,7 +26,7 @@ Cloudflare Worker
   |-- authentication/session handler
   |-- authorization boundary
   |-- sync conflict/idempotency handling
-  `-- account export/deletion
+  `-- account inspection/deletion
                     |
                     v
 Cloudflare D1
@@ -34,8 +36,8 @@ Cloudflare D1
 
 ### `apps/worker`
 
-- Hono-based or comparably small standards-based Worker router
-- Better Auth integration using a maintained Cloudflare/D1 adapter
+- Hono Worker router
+- Better Auth 1.6.23 with its first-party direct D1 binding
 - OAuth callbacks and server-only provider credentials
 - D1 migrations and query layer
 - Ownership checks, input validation, rate limiting, security headers, structured errors, and privacy-safe logging
@@ -73,7 +75,7 @@ Cloudflare D1
 ## Authentication decisions
 
 1. Do not implement OAuth, token signing, password hashing, PKCE, state, or nonce generation from scratch.
-2. Evaluate current Better Auth and `better-auth-cloudflare` releases against current Cloudflare Workers/D1 support before selecting exact versions.
+2. Use Better Auth 1.6.23 directly with D1; the extra `better-auth-cloudflare` adapter is unnecessary for this scope.
 3. Implement and validate Google first as the reference provider.
 4. Add Kakao and Naver through documented OIDC/generic OAuth mechanisms or small provider adapters. Keep provider-specific profile normalization server-side.
 5. Identify accounts by the tuple of provider and provider subject/account ID. Email is profile data, not a globally trusted identity key.
@@ -120,15 +122,14 @@ DELETE /v1/account
 - Return stable public errors without leaking SQL, provider tokens, stack traces, or account-existence details.
 - Provide an auditable complete deletion path for auth rows, sessions, linked accounts, application records, tombstones, and derived data.
 
-## First implementation phases
+## Implementation status
 
-1. Research and ADRs: verify current official documentation, choose versions, settle session transport and sync conflict semantics.
-2. Workspace scaffold: package manager, TypeScript configs, lint/format, unit tests, local Worker/D1 development, CI, and secret scanning.
-3. Authentication vertical slice: Worker, local D1, Google login, Expo callback, session restoration, logout, and negative tests.
-4. Sync vertical slice: migrations, one collection, idempotent push, cursor pull, tombstones, conflict tests, and cross-user isolation tests.
-5. Expo SDK extraction: move portable logic to client-core and platform behavior to expo-client; complete the example app.
-6. Korean providers: Kakao and Naver adapters, profile normalization, account-linking tests, provider failure handling, and documentation.
-7. Operations and release: local/prod migration workflow, deployment guide, key rotation, deletion/export runbook, dependency/security audit, package/repository naming, and license decision.
+1. Research, ADRs, workspace, portable packages, D1 migrations, sync API, CI, and secret scanning are complete.
+2. Better Auth, Google, Kakao, Naver, Expo callback, session, logout, and deletion code paths are implemented.
+3. Local Worker/D1 authorization, conflict, replay, tombstone, pagination, oversized input, and deletion tests pass.
+4. The Expo example provides persistent guest notes, optional manual sync, explicit conflict resolution, and local-data preservation after remote account deletion.
+5. Real Google/Kakao/Naver credentials, provider-console callbacks, iOS/Android development builds, and production Cloudflare resources remain owner-controlled verification work.
+6. Package publication, repository visibility, license, retention/reset protocol, and additional platform SDKs remain deferred decisions.
 
 ## Decisions deliberately deferred
 

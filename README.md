@@ -1,62 +1,68 @@
 # Cloudflare Mobile Sync
 
-Cloudflare Mobile Sync is an incubating, self-hosted backend starter for mobile applications. Each adopter deploys an isolated Cloudflare Worker and D1 database to their own Cloudflare account instead of connecting to a shared multi-tenant service.
+A small, self-hosted authentication and incremental-sync starter for mobile apps. Each adopter deploys one Worker and one D1 database to a Cloudflare account they control. This repository does not operate a shared service.
 
-The backend is platform-neutral. The first supported client is Expo, with the portable sync and API layers kept separate so web, bare React Native, Flutter, Swift, and Android clients can be added later.
+The HTTP protocol is platform-neutral. Expo SDK 57 is the first adapter, while portable schemas and sync orchestration stay independent of Expo, React Native, Node.js, and Cloudflare runtime APIs.
 
-## Intended architecture
+## What is implemented
 
-```text
-Expo app / future clients
-        |
-        | HTTPS
-        v
-Cloudflare Worker
-  - authentication and OAuth callbacks
-  - authorization and validation
-  - incremental sync API
-        |
-        v
-Cloudflare D1
-  - auth data
-  - per-user records and tombstones
-```
+- Better Auth 1.6.23 with database sessions and direct D1 support
+- Google, Kakao OIDC, and Naver OAuth server adapters
+- Expo SDK 57 SecureStore cookie bridge and stable app-scheme callbacks
+- Compare-and-set record sync with idempotent mutations, cursor pulls, and tombstones
+- D1 migrations, user-scoped queries, rate limits, runtime validation, and stable errors
+- Local-first Expo example that works before login and syncs only on request
+- Workers-runtime integration tests including cross-user and deletion failures
 
-The proposed workspace layout is:
+Provider sign-in is implemented but still needs real provider applications, registered callbacks, and device testing before production use. No Cloudflare resource or OAuth application has been created or deployed by this repository.
+
+## Workspace
 
 ```text
-apps/worker               Cloudflare Worker API
-packages/api-contract     portable request/response schemas and types
-packages/client-core      platform-neutral API and sync client
-packages/expo-client      Expo SecureStore, linking, and OAuth adapter
-examples/expo-app         minimal end-to-end example
-docs                      architecture, security, and operational guidance
+apps/worker               Cloudflare Worker, Better Auth, D1 migrations
+packages/api-contract     portable Zod schemas and TypeScript types
+packages/client-core      injected HTTP transport, retry, and sync orchestration
+packages/expo-client      Expo SecureStore, linking, and auth adapter
+examples/expo-app         local-first end-to-end reference app
+docs                      architecture, security, API, operations, and ADRs
 ```
 
-## Goals
+## Quick start
 
-- Self-hosted deployment to the adopter's own Cloudflare account
-- Cloudflare Workers and D1 with no always-on server process
-- Google, Kakao, and Naver authentication through maintained authentication primitives
-- Local-first, cursor-based incremental synchronization
-- Strict per-user data isolation and complete account-data deletion
-- Expo-first SDK without coupling the backend protocol to Expo
-- Reproducible migrations, automated tests, and documented deployment
+Requirements: Node.js 22.13–24 and pnpm 11.9.0.
 
-## Non-goals
+```bash
+pnpm install
+pnpm --filter @cloudflare-mobile-sync/worker migrate:local
+pnpm --filter @cloudflare-mobile-sync/worker dev
+```
 
-- Operating a shared authentication or database SaaS
-- Reimplementing OAuth, token signing, or cryptographic primitives
-- Direct D1 access from an untrusted mobile client
-- Depending on Byulsata-specific astrology, saju, or tarot data models
-- Supporting every client platform in the first release
+Copy `apps/worker/.dev.vars.example` to `apps/worker/.dev.vars` and replace placeholders locally. Never commit that file. In another terminal:
 
-## Status
+```bash
+pnpm --filter @cloudflare-mobile-sync/expo-app dev
+```
 
-The repository is currently documentation-only. No production implementation, Cloudflare resources, OAuth applications, or secrets have been created.
+The Expo example needs `EXPO_PUBLIC_SYNC_URL`; copy `examples/expo-app/.env.example` to `.env` and use an address reachable from the selected simulator or device. OAuth callbacks require an Expo development build with the compiled `cloudflare-mobile-sync` scheme. Expo Go is not a valid OAuth verification target.
 
-Start with [HANDOFF.md](./HANDOFF.md) and [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
+## Quality commands
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm build
+pnpm security:secrets
+pnpm security:audit
+pnpm check
+```
+
+See [API](./docs/API.md), [operations](./docs/OPERATIONS.md), [provider setup](./docs/PROVIDERS.md), [security model](./docs/SECURITY.md), and [research baseline](./docs/RESEARCH.md).
+
+## Deliberate limits
+
+This is not Firebase, a CRDT engine, a shared multi-tenant SaaS, or a realtime subscription service. Sync payloads are opaque JSON in allowlisted collections. Conflicts are returned to the host app for an explicit record-level choice. Tombstones are retained indefinitely until a separate stale-device reset protocol is designed.
 
 ## License
 
-No open-source license has been selected yet. The repository is private during incubation. Choose and add a license explicitly before making it public.
+No open-source license has been selected. Make that decision before changing repository visibility or publishing packages.
