@@ -1,0 +1,11 @@
+BETTER_AUTH_SECRET=replace-with-at-least-32-random-bytes
+# Use the same value at version 1 on a new install. Put the newest version first when rotating.
+BETTER_AUTH_SECRETS=1:replace-with-at-least-32-random-bytes
+
+# Add a provider only when both values are available.
+GOOGLE_CLIENT_ID=placeholder
+GOOGLE_CLIENT_SECRET=placeholder
+KAKAO_CLIENT_ID=placeholder
+KAKAO_CLIENT_SECRET=placeholder
+NAVER_CLIENT_ID=placeholder
+NAVER_CLIENT_SECRET=placeholder

@@ -1,0 +1,26 @@
+{
+  "name": "cloudflare-mobile-sync",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Self-hosted authentication and incremental sync for mobile applications",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22.13 <25"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm security:secrets",
+    "format": "biome format --write .",
+    "lint": "biome check .",
+    "security:audit": "pnpm audit --audit-level high",
+    "security:secrets": "node scripts/check-secrets.mjs",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.4",
+    "@types/node": "24.13.2",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  }
+}
