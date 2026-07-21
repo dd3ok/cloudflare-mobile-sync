@@ -42,6 +42,11 @@ D1 database: cloudflare-mobile-sync-prod
 D1 binding: DB
 ```
 
+Its production trusted-origin allowlist contains only the three compiled
+Byulsata app schemes (`byeolsata-dev://`, `byeolsata-preview://`, and
+`byeolsata://`). The generic example scheme remains a local-development
+default and is not authorized against the maintainer Worker.
+
 The D1 ID and public Worker origin are deployment configuration, not credentials.
 `BETTER_AUTH_SECRET`, `BETTER_AUTH_SECRETS`, and provider credentials remain
 secret. Wrangler validates the two required Better Auth secret names before a

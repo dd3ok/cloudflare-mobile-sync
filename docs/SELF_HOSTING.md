@@ -155,9 +155,24 @@ login, and `401` for the protected account endpoint before login.
 
 The public source release does not publish SDK packages to npm. An Expo app kept
 inside the forked workspace can depend on the three internal packages with
-`workspace:*`; an app in a separate repository can use the documented HTTPS API
-until versioned package distribution is added. Do not copy only `expo-client`
-without its portable `client-core` and `api-contract` dependencies.
+`workspace:*`. For a separately owned app repository, build and pack all three
+private packages from one pinned source commit, then install the resulting local
+archives together:
+
+```bash
+pnpm --filter @cloudflare-mobile-sync/api-contract build
+pnpm --filter @cloudflare-mobile-sync/client-core build
+pnpm --filter @cloudflare-mobile-sync/expo-client build
+pnpm --filter @cloudflare-mobile-sync/api-contract pack --pack-destination <consumer>/vendor/cloudflare-mobile-sync
+pnpm --filter @cloudflare-mobile-sync/client-core pack --pack-destination <consumer>/vendor/cloudflare-mobile-sync
+pnpm --filter @cloudflare-mobile-sync/expo-client pack --pack-destination <consumer>/vendor/cloudflare-mobile-sync
+```
+
+Commit the three archives and the consumer lockfile so local and remote builds
+resolve the same code. Record the source commit next to the archives. This is a
+source snapshot for a self-hosted consumer, not an npm release or a promise of
+cross-version compatibility. Never copy only `expo-client` without its portable
+`client-core` and `api-contract` dependencies.
 
 The consuming Expo app receives public configuration only:
 

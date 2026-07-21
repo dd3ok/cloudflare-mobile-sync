@@ -30,6 +30,6 @@
   "vars": {
     "ALLOWED_COLLECTIONS": "notes",
     "BETTER_AUTH_URL": "https://cloudflare-mobile-sync.ponntailstudio.workers.dev",
-    "TRUSTED_ORIGINS": "cloudflare-mobile-sync://"
+    "TRUSTED_ORIGINS": "byeolsata-dev://,byeolsata-preview://,byeolsata://"
   }
 }

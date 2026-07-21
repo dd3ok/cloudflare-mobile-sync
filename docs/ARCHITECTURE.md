@@ -130,8 +130,11 @@ DELETE /v1/account
 4. The Expo example provides persistent guest notes, optional manual sync, explicit conflict resolution, and local-data preservation after remote account deletion.
 5. The owner account's `workers.dev` Worker and production D1 database are
    deployed, all committed migrations are applied, and Google credentials and
-   the Worker callback are configured. Real Google login in an Expo development
-   build, Kakao/Naver setup, and iOS/Android verification remain.
+   the Worker callback are configured. The Byulsata app consumes one pinned
+   archive set of the three private client packages and exposes optional login,
+   session restoration, logout, and account deletion without uploading its
+   local domain data. Real Google login in an Expo development build,
+   Kakao/Naver setup, and iOS/Android verification remain.
 6. The v1 retention, source-distribution, conflict, and account-linking policies
    below are accepted. Real-provider/device verification and additional platform
    SDKs remain deferred.
