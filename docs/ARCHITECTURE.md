@@ -1,6 +1,6 @@
 # Architecture baseline
 
-Status: implemented locally; provider/device verification and owner deployment remain.
+Status: owner Worker and D1 deployed; provider/device verification remains.
 
 ## Product model
 
@@ -128,10 +128,10 @@ DELETE /v1/account
 2. Better Auth, Google, Kakao, Naver, Expo callback, session, logout, and deletion code paths are implemented.
 3. Local Worker/D1 authorization, conflict, replay, tombstone, pagination, oversized input, and deletion tests pass.
 4. The Expo example provides persistent guest notes, optional manual sync, explicit conflict resolution, and local-data preservation after remote account deletion.
-5. The owner account's `workers.dev` subdomain and empty production D1 database
-   are prepared. Remote migrations, Worker deployment, real Google/Kakao/Naver
-   credentials, provider-console callbacks, and iOS/Android development builds
-   remain owner-controlled verification work.
+5. The owner account's `workers.dev` Worker and production D1 database are
+   deployed, all committed migrations are applied, and Google credentials and
+   the Worker callback are configured. Real Google login in an Expo development
+   build, Kakao/Naver setup, and iOS/Android verification remain.
 6. The v1 retention, publication, conflict, and account-linking policies below are accepted. Real-provider/device verification and additional platform SDKs remain deferred.
 
 ## Accepted v1 lifecycle policies

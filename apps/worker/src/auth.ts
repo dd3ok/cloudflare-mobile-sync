@@ -77,6 +77,11 @@ export function createAuth(env: Env) {
       freshAge: 60 * 60 * 24,
       updateAge: 60 * 60 * 24,
     },
+    advanced: {
+      ipAddress: {
+        ipAddressHeaders: ["cf-connecting-ip"],
+      },
+    },
     user: {
       deleteUser: { enabled: false },
     },

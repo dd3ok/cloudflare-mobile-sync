@@ -2,7 +2,7 @@
 
 Status: accepted
 
-Reviewed: 2026-07-20
+Reviewed: 2026-07-21
 
 ## Context
 
@@ -25,6 +25,10 @@ required for the first end-to-end verification.
   with the first Worker deployment.
 - Do not apply remote migrations or deploy Worker code until the owner explicitly
   starts the deployment step.
+
+The owner authorized that step on 2026-07-21. Both committed migrations were
+applied and the Worker was deployed with its Better Auth and Google credentials
+stored as Worker secrets outside Git.
 
 ## Consequences
 

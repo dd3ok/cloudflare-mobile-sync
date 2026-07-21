@@ -1,6 +1,6 @@
 # Configuration contract
 
-Reviewed: 2026-07-20
+Reviewed: 2026-07-21
 
 Configuration is split by trust boundary. The portable packages accept options
 and never read environment variables themselves.
@@ -34,7 +34,7 @@ ignored `apps/worker/.env.production` file for the first deployment. Wrangler
 uploads those values as encrypted Worker secrets when the file is passed with
 `--secrets-file`; the real file must never be committed.
 
-The prepared owner deployment uses:
+The deployed owner instance uses:
 
 ```text
 Worker origin: https://cloudflare-mobile-sync.ponntailstudio.workers.dev

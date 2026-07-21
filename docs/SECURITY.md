@@ -1,6 +1,6 @@
 # Security model
 
-Reviewed: 2026-07-20
+Reviewed: 2026-07-21
 
 ## Trust boundaries
 
@@ -26,7 +26,7 @@ Reviewed: 2026-07-20
 | Offline overwrite | Each mutation supplies `baseRevision`; a mismatch is a conflict, never an implicit overwrite |
 | Oversized or malicious input | Runtime schemas plus request, batch, identifier, payload, page, and JSON-depth limits |
 | Session theft or stale credentials | Server-side database sessions, explicit logout/revocation, no long-lived bearer token plugin, small SecureStore cache |
-| Abuse and resource exhaustion | Per-route application limits, authenticated-user rate keys, provider/auth rate limits, bounded D1 queries |
+| Abuse and resource exhaustion | Per-route application limits, authenticated-user rate keys, provider/auth rate limits keyed from Cloudflare's trusted `CF-Connecting-IP` header, bounded D1 queries |
 | Sensitive logging | Do not log request bodies, cookies, authorization headers, OAuth codes, provider profiles, or record payloads |
 | Incomplete deletion | Provider grant removal precedes an atomic D1 cascade; deletion tests verify auth and sync rows are gone |
 

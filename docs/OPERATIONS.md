@@ -1,10 +1,13 @@
 # Operations guide
 
-Reviewed: 2026-07-20
+Reviewed: 2026-07-21
 
-This is a CLI-first self-hosted starter. The owner account subdomain and an empty
-production D1 database were created on 2026-07-20. No migration, Worker code,
-secret, or OAuth application has been deployed.
+This is a CLI-first self-hosted starter. The owner Worker and production D1
+database were deployed on 2026-07-21 at
+`https://cloudflare-mobile-sync.ponntailstudio.workers.dev`. All committed
+migrations are applied. Google credentials and its Worker callback are
+configured; the real mobile login flow still requires an Expo development-build
+verification.
 
 ## Local development
 
@@ -151,3 +154,7 @@ Rotate provider client secrets in each provider console, update the correspondin
 - `401` after restart: treat the server session as authoritative, sign out locally, and authenticate again.
 - Push conflict: inspect the per-mutation `current` record and explicitly keep local data at its revision or adopt the server record.
 - D1 migration mismatch: inspect local migration state, recreate disposable local state if necessary, and never mark a remote migration applied manually without verifying its SQL effects.
+- A Cloudflare `1042` immediately after a first deployment can be a transient
+  routing-propagation response. Retry `/health` and inspect `wrangler tail`; if it
+  persists, investigate same-zone Worker subrequests rather than adding a
+  compatibility flag without evidence.

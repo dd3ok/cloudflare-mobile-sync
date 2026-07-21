@@ -14,7 +14,12 @@ The HTTP protocol is platform-neutral. Expo SDK 57 is the first adapter, while p
 - Local-first Expo example that works before login and syncs only on request
 - Workers-runtime integration tests including cross-user and deletion failures
 
-Provider sign-in is implemented but still needs real provider applications, registered callbacks, and device testing before production use. The owner account now has an empty production D1 database and a `workers.dev` account subdomain; no Worker code, migration, secret, or OAuth application has been deployed.
+The owner instance is deployed at
+`https://cloudflare-mobile-sync.ponntailstudio.workers.dev`, its D1 migrations
+are applied, and Google OAuth credentials and the Worker callback are configured.
+Real Google sign-in, redirect return, session restoration, and account deletion
+still need end-to-end verification in an Expo development build before the
+provider is considered production-ready. Kakao and Naver remain unconfigured.
 
 ## Workspace
 
