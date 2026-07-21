@@ -1,5 +1,7 @@
 # Cloudflare Mobile Sync
 
+English | [한국어](./README.ko.md)
+
 A small, self-hosted authentication and incremental-sync starter for mobile apps. Each adopter deploys one Worker and one D1 database to a Cloudflare account they control. This repository does not operate a shared service.
 
 The HTTP protocol is platform-neutral. Expo SDK 57 is the first adapter, while portable schemas and sync orchestration stay independent of Expo, React Native, Node.js, and Cloudflare runtime APIs.
