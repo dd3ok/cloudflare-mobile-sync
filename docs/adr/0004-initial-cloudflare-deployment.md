@@ -41,6 +41,8 @@ consumer app URLs, and every provider callback together.
 
 The D1 database ID is account-specific but is not a credential. Secrets remain
 outside Git in an ignored file and are encrypted by Cloudflare when uploaded.
+The resulting maintainer deployment is not a public sandbox; public source
+distribution is governed by ADR 0005 and requires per-adopter deployments.
 
 ## Sources
 

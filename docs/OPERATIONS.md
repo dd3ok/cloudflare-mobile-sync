@@ -9,6 +9,10 @@ migrations are applied. Google credentials and its Worker callback are
 configured; the real mobile login flow still requires an Expo development-build
 verification.
 
+This maintainer deployment is not a public sandbox. A third-party adopter must
+follow [the self-hosting guide](./SELF_HOSTING.md) and replace every
+account-specific Wrangler value before running a remote command.
+
 ## Local development
 
 1. Install Node.js 22.13–24, Corepack, and pnpm 11.9.0.
@@ -82,10 +86,10 @@ Domain, add the following top-level configuration with the real hostname:
 The minimum production values then become:
 
 ```text
-BETTER_AUTH_URL=https://cloudflare-mobile-sync.ponntailstudio.workers.dev
+BETTER_AUTH_URL=https://your-worker.your-subdomain.workers.dev
 TRUSTED_ORIGINS=my-app://
 ALLOWED_COLLECTIONS=notes
-EXPO_PUBLIC_MOBILE_SYNC_URL=https://cloudflare-mobile-sync.ponntailstudio.workers.dev
+EXPO_PUBLIC_MOBILE_SYNC_URL=https://your-worker.your-subdomain.workers.dev
 EXPO_PUBLIC_MOBILE_SYNC_PROVIDERS=
 ```
 

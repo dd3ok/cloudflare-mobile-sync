@@ -34,7 +34,7 @@ ignored `apps/worker/.env.production` file for the first deployment. Wrangler
 uploads those values as encrypted Worker secrets when the file is passed with
 `--secrets-file`; the real file must never be committed.
 
-The deployed owner instance uses:
+The maintainer reference instance uses:
 
 ```text
 Worker origin: https://cloudflare-mobile-sync.ponntailstudio.workers.dev
@@ -46,6 +46,11 @@ The D1 ID and public Worker origin are deployment configuration, not credentials
 `BETTER_AUTH_SECRET`, `BETTER_AUTH_SECRETS`, and provider credentials remain
 secret. Wrangler validates the two required Better Auth secret names before a
 deployment can succeed.
+
+These reference values are not public defaults. Every adopter must replace the
+Worker name, D1 name and ID, public origin, trusted app origins, allowed
+collections, and rate-limit namespace before any remote operation. Follow
+[the self-hosting guide](./SELF_HOSTING.md).
 
 ## Consuming Expo app
 

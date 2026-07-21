@@ -1,6 +1,6 @@
 # Compatibility research
 
-Reviewed: 2026-07-20
+Reviewed: 2026-07-21
 
 This document records the current compatibility baseline used by the initial
 implementation. Re-check these sources before dependency upgrades.
@@ -26,6 +26,9 @@ implementation. Re-check these sources before dependency upgrades.
 - Use Better Auth's direct D1 binding instead of `better-auth-cloudflare`.
 - Run `pnpm audit` and the full test suite before dependency updates are handed
   off.
+- Distribute the first public release as MIT-licensed source. Keep workspace
+  packages private and unpublished until external install tests and versioning
+  are deliberately added.
 
 ## Expo findings
 

@@ -2,6 +2,7 @@
   "name": "@cloudflare-mobile-sync/api-contract",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "exports": {
     ".": {

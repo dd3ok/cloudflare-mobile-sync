@@ -132,16 +132,18 @@ DELETE /v1/account
    deployed, all committed migrations are applied, and Google credentials and
    the Worker callback are configured. Real Google login in an Expo development
    build, Kakao/Naver setup, and iOS/Android verification remain.
-6. The v1 retention, publication, conflict, and account-linking policies below are accepted. Real-provider/device verification and additional platform SDKs remain deferred.
+6. The v1 retention, source-distribution, conflict, and account-linking policies
+   below are accepted. Real-provider/device verification and additional platform
+   SDKs remain deferred.
 
 ## Accepted v1 lifecycle policies
 
 - Retain tombstones and change history indefinitely. Do not add pruning until
   measured storage pressure justifies both a retention window and an explicit
   stale-device reset/snapshot protocol.
-- Keep the repository and all workspace packages private and unpublished, with no
-  open-source license. Reconsider publication only after one real host app and the
-  supported providers pass end-to-end verification.
+- License the repository source under MIT and prepare it as a public self-hosted
+  starter. Keep workspace packages private and unpublished until versioned
+  package distribution is justified and independently verified. See ADR 0005.
 - Resolve conflicts with an explicit record-level choice: keep the local value or
   accept the server value. Do not auto-merge opaque JSON or add field-level merge
   rules in v1.

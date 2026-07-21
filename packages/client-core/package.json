@@ -2,6 +2,7 @@
   "name": "@cloudflare-mobile-sync/client-core",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "exports": {
     ".": {

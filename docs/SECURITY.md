@@ -33,6 +33,8 @@ Reviewed: 2026-07-21
 ## Accepted v1 constraints
 
 - This is a self-hosted single-adopter starter, not a shared multi-tenant service.
+- The maintainer deployment is not a public sandbox. Every unrelated adopter
+  uses an isolated Worker, D1 database, provider applications, and secrets.
 - There is no realtime transport, background queue, field-level merge, CRDT, or
   arbitrary server-side query language.
 - Tombstones and change history are not pruned in v1. This avoids silently

@@ -1,6 +1,6 @@
 # OAuth provider setup and verification
 
-Reviewed: 2026-07-20
+Reviewed: 2026-07-21
 
 Provider applications and secrets are owner-controlled external resources. The repository does not create them. Enable only providers for which both client ID and client secret are set.
 
@@ -44,9 +44,9 @@ Naver provider terms restrict collection and use of profile data. This starter m
 
 | Capability | Local status | Still required |
 | --- | --- | --- |
-| Better Auth/D1 schema and session route integration | built and Workers-runtime tested | production URL and secrets |
+| Better Auth/D1 schema and session route integration | built, Workers-runtime tested, and deployed to the maintainer reference instance | each adopter's production URL and secrets |
 | Expo callback construction and SecureStore adapter | typechecked; web UI bundled | iOS/Android development build |
-| Google authorization and callback | implemented | real OAuth client, consent/cancel/revoke tests |
+| Google authorization and callback | implemented; maintainer credentials and callback configured | real-account consent/cancel/revoke tests |
 | Kakao OIDC and unlink | implemented | Kakao console enablement and real-account tests |
 | Naver OAuth and token deletion | implemented | Naver app review, real-account and error-response tests |
 

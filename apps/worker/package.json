@@ -2,6 +2,7 @@
   "name": "@cloudflare-mobile-sync/worker",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "wrangler deploy --dry-run --outdir dist",

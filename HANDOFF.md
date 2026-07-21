@@ -4,11 +4,15 @@ Copy the prompt below into a new Codex task opened with this repository as the w
 
 ---
 
-You are taking over the initial implementation of the private repository `dd3ok/cloudflare-mobile-sync`.
+You are taking over the initial implementation of `dd3ok/cloudflare-mobile-sync`.
 
 ## Mission
 
 Build a secure, self-hosted, platform-neutral authentication and incremental-sync backend on Cloudflare Workers and D1. Each adopter must deploy an isolated instance to their own Cloudflare account. The first supported client is Expo SDK 57, but the Worker protocol and core client must not depend on Expo. The Byulsata app will eventually consume the Expo package, but this repository must contain no astrology, saju, tarot, birth-profile, or other Byulsata-specific domain code.
+
+The owner authorized preparation of an MIT-licensed public source release on
+2026-07-21. This does not authorize a shared hosted service, npm publication, or
+changing repository visibility without completing `docs/PUBLIC_RELEASE.md`.
 
 The repository begins as documentation only. Read all tracked files before acting, especially `AGENTS.md`, `README.md`, and `docs/ARCHITECTURE.md`. Inspect Git history and worktree state. Preserve user changes and never introduce or print secrets.
 

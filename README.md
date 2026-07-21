@@ -14,12 +14,12 @@ The HTTP protocol is platform-neutral. Expo SDK 57 is the first adapter, while p
 - Local-first Expo example that works before login and syncs only on request
 - Workers-runtime integration tests including cross-user and deletion failures
 
-The owner instance is deployed at
-`https://cloudflare-mobile-sync.ponntailstudio.workers.dev`, its D1 migrations
-are applied, and Google OAuth credentials and the Worker callback are configured.
-Real Google sign-in, redirect return, session restoration, and account deletion
-still need end-to-end verification in an Expo development build before the
-provider is considered production-ready. Kakao and Naver remain unconfigured.
+A maintainer-owned reference instance is deployed, its D1 migrations are
+applied, and Google OAuth credentials and the Worker callback are configured.
+It is not a public sandbox: do not point another application at it. Real Google
+sign-in, redirect return, session restoration, and account deletion still need
+end-to-end verification in an Expo development build before the provider is
+considered production-ready. Kakao and Naver remain unconfigured.
 
 ## Workspace
 
@@ -56,6 +56,18 @@ from the selected simulator or device. Leave
 require an Expo development build with the compiled `cloudflare-mobile-sync`
 scheme. Expo Go is not a valid OAuth verification target.
 
+## Self-hosting
+
+Start with [the self-hosting guide](./docs/SELF_HOSTING.md). The committed
+Wrangler configuration describes the maintainer reference deployment, so every
+adopter must replace its Worker name, D1 database, public origin, app origins,
+and provider secrets before using a remote command.
+
+The first public distribution is source-only. Workspace packages intentionally
+remain `private: true` and are not available from npm. See
+[the public-release checklist](./docs/PUBLIC_RELEASE.md) for what remains before
+repository visibility changes or a `v0.1.0` pre-release.
+
 ## Quality commands
 
 ```bash
@@ -70,7 +82,7 @@ pnpm check
 
 See [configuration](./docs/CONFIGURATION.md), [API](./docs/API.md),
 [operations](./docs/OPERATIONS.md), [provider setup](./docs/PROVIDERS.md),
-[security model](./docs/SECURITY.md), and
+[security model](./docs/SECURITY.md), [security reporting](./SECURITY.md), and
 [research baseline](./docs/RESEARCH.md).
 
 ## Deliberate limits
@@ -79,7 +91,6 @@ This is not Firebase, a CRDT engine, a shared multi-tenant SaaS, or a realtime s
 
 ## License
 
-V1 distribution policy is private and unpublished: every workspace package has
-`private: true`, and no open-source license is selected. Reconsider visibility,
-licensing, and npm publication only after a real host app and the supported OAuth
-providers pass end-to-end verification.
+The source code is available under the [MIT License](./LICENSE). Package
+manifests remain private to prevent accidental npm publication; source licensing
+does not turn the maintainer deployment into a hosted service.

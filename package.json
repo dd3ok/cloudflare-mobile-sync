@@ -2,7 +2,12 @@
   "name": "cloudflare-mobile-sync",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Self-hosted authentication and incremental sync for mobile applications",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dd3ok/cloudflare-mobile-sync.git"
+  },
   "packageManager": "pnpm@11.9.0",
   "engines": {
     "node": ">=22.13 <25"
