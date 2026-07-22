@@ -30,11 +30,11 @@ provider/platform production-readiness are separate claims.
 - [x] verify a clean clone can install, run `pnpm check`, run
       `pnpm security:audit`, migrate disposable local D1 state, and build the
       ANT HELL Worker configuration using only tracked documentation
-- [ ] make the GitHub repository public after the owner reviews this checklist
-- [ ] immediately enable Dependabot alerts, private vulnerability reporting,
+- [x] make the GitHub repository public after the owner reviews this checklist
+- [x] immediately enable Dependabot alerts, private vulnerability reporting,
       branch protection, and the required `verify` CI check
-- [ ] confirm public-repository CI passes
-- [ ] create a `v0.1.0` GitHub pre-release from the verified commit
+- [x] confirm public-repository CI passes
+- [x] create a `v0.1.0` GitHub pre-release from the verified commit
 
 GitHub Free does not expose every required repository protection while this
 personal repository is private. Those settings are applied and verified
