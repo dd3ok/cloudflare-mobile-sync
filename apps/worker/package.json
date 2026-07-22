@@ -6,9 +6,12 @@
   "type": "module",
   "scripts": {
     "build": "wrangler deploy --dry-run --outdir dist",
+    "build:ant-hell": "wrangler deploy --dry-run --config wrangler.ant-hell.jsonc --outdir dist/ant-hell",
+    "deploy:ant-hell": "wrangler deploy --config wrangler.ant-hell.jsonc",
     "dev": "wrangler dev",
     "migrate:local": "wrangler d1 migrations apply DB --local",
     "migrate:remote": "wrangler d1 migrations apply cloudflare-mobile-sync-prod --remote",
+    "migrate:ant-hell:remote": "wrangler d1 migrations apply ant-hell-sync-prod --remote --config wrangler.ant-hell.jsonc",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "types": "wrangler types"
