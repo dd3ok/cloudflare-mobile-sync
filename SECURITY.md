@@ -2,10 +2,11 @@
 
 ## Supported versions
 
-Cloudflare Mobile Sync does not have a stable public release yet. Security fixes
-are applied to `main`; a tagged `0.x` release will remain pre-release software
-until the real-provider and device gates in
-[the public-release checklist](./docs/PUBLIC_RELEASE.md) are complete.
+Cloudflare Mobile Sync does not have a stable release yet. Security fixes are
+applied to `main`; tagged `0.x` releases remain pre-release software. Public
+source availability is not a claim that every provider and platform has passed
+the real-device gates in
+[the public-release checklist](./docs/PUBLIC_RELEASE.md).
 
 ## Report a vulnerability privately
 

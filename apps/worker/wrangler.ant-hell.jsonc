@@ -1,0 +1,40 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "ant-hell-sync",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ant-hell-sync-prod",
+      "database_id": "9d62ad1b-c479-4098-a2c5-016b12067a5c",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "SYNC_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    }
+  ],
+  "secrets": {
+    "required": [
+      "BETTER_AUTH_SECRET",
+      "BETTER_AUTH_SECRETS",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET"
+    ]
+  },
+  "vars": {
+    "ALLOWED_COLLECTIONS": "",
+    "BETTER_AUTH_URL": "https://ant-hell-sync.ponntailstudio.workers.dev",
+    "TRUSTED_ORIGINS": "com.dd3ok.anthell://"
+  }
+}

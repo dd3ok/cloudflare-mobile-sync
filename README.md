@@ -19,9 +19,12 @@ The HTTP protocol is platform-neutral. Expo SDK 57 is the first adapter, while p
 A maintainer-owned reference instance is deployed, its D1 migrations are
 applied, and Google OAuth credentials and the Worker callback are configured.
 It is not a public sandbox: do not point another application at it. Real Google
-sign-in, redirect return, session restoration, and account deletion still need
-end-to-end verification in an Expo development build before the provider is
-considered production-ready. Kakao and Naver remain unconfigured.
+sign-in, redirect return, session restoration, and logout have been verified on
+Android through the Byulsata Expo consumer. The ANT HELL Godot consumer has
+also verified Android sign-in and callback return against an isolated Worker
+and D1 deployment. Account-deletion regression checks and iOS verification
+remain, so this source release does not claim full provider or platform
+production readiness. Kakao and Naver remain unconfigured.
 
 ## Workspace
 
@@ -65,10 +68,10 @@ Wrangler configuration describes the maintainer reference deployment, so every
 adopter must replace its Worker name, D1 database, public origin, app origins,
 and provider secrets before using a remote command.
 
-The first public distribution is source-only. Workspace packages intentionally
-remain `private: true` and are not available from npm. See
-[the public-release checklist](./docs/PUBLIC_RELEASE.md) for what remains before
-repository visibility changes or a `v0.1.0` pre-release.
+The first public distribution is source-only pre-release software. Workspace
+packages intentionally remain `private: true` and are not available from npm.
+See [the public-release checklist](./docs/PUBLIC_RELEASE.md) for release status
+and the provider/platform verification that remains.
 
 ## Quality commands
 
@@ -86,6 +89,10 @@ See [configuration](./docs/CONFIGURATION.md), [API](./docs/API.md),
 [operations](./docs/OPERATIONS.md), [provider setup](./docs/PROVIDERS.md),
 [security model](./docs/SECURITY.md), [security reporting](./SECURITY.md), and
 [research baseline](./docs/RESEARCH.md).
+
+The maintainer's isolated consumer deployments are documented separately. See
+[ANT HELL deployment](./docs/ANT_HELL_DEPLOYMENT.md) for its authentication-only
+configuration; it does not share the Byulsata Worker or D1 database.
 
 ## Deliberate limits
 

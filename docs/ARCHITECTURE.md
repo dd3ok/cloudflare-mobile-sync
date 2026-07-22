@@ -1,6 +1,7 @@
 # Architecture baseline
 
-Status: owner Worker and D1 deployed; provider/device verification remains.
+Status: public-source pre-release candidate; provider/device verification is
+partial and explicitly tracked.
 
 ## Product model
 
@@ -133,8 +134,11 @@ DELETE /v1/account
    the Worker callback are configured. The Byulsata app consumes one pinned
    archive set of the three private client packages and exposes optional login,
    session restoration, logout, and account deletion without uploading its
-   local domain data. Real Google login in an Expo development build,
-   Kakao/Naver setup, and iOS/Android verification remain.
+   local domain data. Android real-account login, callback return, session
+   restoration, and logout are verified there. ANT HELL independently consumes
+   the HTTP authentication contract from Godot and has verified Android login
+   and callback return against a separate Worker and D1 database. Account
+   deletion regression checks, iOS verification, and Kakao/Naver setup remain.
 6. The v1 retention, source-distribution, conflict, and account-linking policies
    below are accepted. Real-provider/device verification and additional platform
    SDKs remain deferred.
