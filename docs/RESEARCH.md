@@ -1,6 +1,6 @@
 # Compatibility research
 
-Reviewed: 2026-07-21
+Reviewed: 2026-07-23
 
 This document records the current compatibility baseline used by the initial
 implementation. Re-check these sources before dependency upgrades.
@@ -32,8 +32,12 @@ implementation. Re-check these sources before dependency upgrades.
 
 ## Expo findings
 
-- A stable application scheme must be compiled into a development or production
-  build. Expo Go callback URLs are not stable enough for authentication.
+- A stable reverse-domain application scheme must be compiled into a development
+  or production build. Expo Go callback URLs are not stable enough for
+  authentication. RFC 8252 prefers claimed HTTPS links where possible, but the
+  Better Auth 1.6.23 Expo bridge transfers its session cookie only to non-HTTP
+  callback URLs, so changing to a universal/app link alone breaks the session
+  handoff.
 - The Expo adapter stores only Better Auth session cookies/cache in SecureStore.
   Application records remain in the host application's local database.
 - SecureStore values are small, fallible credentials, not a source of truth.

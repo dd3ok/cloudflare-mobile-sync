@@ -10,7 +10,7 @@ The HTTP protocol is platform-neutral. Expo SDK 57 is the first adapter, while p
 
 - Better Auth 1.6.23 with database sessions and direct D1 support
 - Google, Kakao OIDC, and Naver OAuth server adapters
-- Expo SDK 57 SecureStore cookie bridge and stable app-scheme callbacks
+- Expo SDK 57 SecureStore cookie bridge with reverse-domain app-scheme defaults
 - Compare-and-set record sync with idempotent mutations, cursor pulls, and tombstones
 - D1 migrations, user-scoped queries, rate limits, runtime validation, and stable errors
 - Local-first Expo example that works before login and syncs only on request
@@ -58,7 +58,8 @@ The Expo example needs `EXPO_PUBLIC_MOBILE_SYNC_URL`; copy
 from the selected simulator or device. Leave
 `EXPO_PUBLIC_MOBILE_SYNC_PROVIDERS` empty for local-only use, then set it to
 `google` after Google credentials are configured on the Worker. OAuth callbacks
-require an Expo development build with the compiled `cloudflare-mobile-sync`
+require an Expo development build with the compiled
+`com.example.cloudflaremobilesync`
 scheme. Expo Go is not a valid OAuth verification target.
 
 ## Self-hosting

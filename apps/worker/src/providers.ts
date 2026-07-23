@@ -1,5 +1,6 @@
 import type { GenericOAuthConfig } from "better-auth/plugins";
 import type { Env } from "./env";
+import { fetchWithTimeout } from "./fetch";
 
 interface KakaoProfile {
   id?: number;
@@ -39,7 +40,7 @@ async function placeholderEmail(providerId: string, subject: string): Promise<st
 }
 
 async function fetchJson<T>(url: string, accessToken: string): Promise<T | null> {
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
     redirect: "error",
   });

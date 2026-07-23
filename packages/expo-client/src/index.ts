@@ -2,6 +2,7 @@ import { expoClient } from "@better-auth/expo/client";
 import {
   type CancellationSignal,
   createSyncClient,
+  type RetryPolicy,
   SyncCancelledError,
   type SyncClient,
 } from "@cloudflare-mobile-sync/client-core";
@@ -9,6 +10,8 @@ import { genericOAuthClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import * as Linking from "expo-linking";
 import * as SecureStore from "expo-secure-store";
+import { fetchWithTimeout } from "./fetch-with-timeout";
+import { validateMobileScheme } from "./mobile-scheme";
 
 export interface ExpoAuthOptions {
   baseUrl: string;
@@ -18,6 +21,7 @@ export interface ExpoAuthOptions {
 }
 
 export function createExpoAuthClient(options: ExpoAuthOptions) {
+  validateMobileScheme(options.scheme);
   return createAuthClient({
     baseURL: options.baseUrl,
     basePath: options.authPath ?? "/v1/auth",
@@ -40,6 +44,8 @@ export interface ExpoSyncClientOptions {
   baseUrl: string;
   authClient: { getCookie(): string };
   fetch?: typeof globalThis.fetch;
+  requestTimeoutMilliseconds?: number;
+  retryPolicy?: Partial<RetryPolicy>;
 }
 
 function sleep(milliseconds: number, signal?: CancellationSignal): Promise<void> {
@@ -66,6 +72,10 @@ function sleep(milliseconds: number, signal?: CancellationSignal): Promise<void>
 export function createExpoSyncClient(options: ExpoSyncClientOptions): SyncClient {
   const baseUrl = options.baseUrl.replace(/\/$/u, "");
   const fetchImplementation = options.fetch ?? globalThis.fetch;
+  const requestTimeoutMilliseconds = options.requestTimeoutMilliseconds ?? 15_000;
+  if (!Number.isFinite(requestTimeoutMilliseconds) || requestTimeoutMilliseconds <= 0) {
+    throw new Error("requestTimeoutMilliseconds must be positive");
+  }
 
   return createSyncClient({
     authHeaders: async () => {
@@ -76,15 +86,21 @@ export function createExpoSyncClient(options: ExpoSyncClientOptions): SyncClient
       random: Math.random,
       sleep,
     },
+    ...(options.retryPolicy === undefined ? {} : { retryPolicy: options.retryPolicy }),
     transport: {
       async send(request) {
-        const response = await fetchImplementation(`${baseUrl}${request.path}`, {
-          method: request.method,
-          headers: request.headers,
-          credentials: "omit",
-          ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
-          ...(request.signal === undefined ? {} : { signal: request.signal as AbortSignal }),
-        });
+        const response = await fetchWithTimeout(
+          fetchImplementation,
+          `${baseUrl}${request.path}`,
+          {
+            method: request.method,
+            headers: request.headers,
+            credentials: "omit",
+            ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
+          },
+          requestTimeoutMilliseconds,
+          request.signal,
+        );
         const text = await response.text();
         let body: unknown = null;
         if (text.length > 0) {

@@ -57,9 +57,15 @@ A create uses `baseRevision: 0`. Later puts and deletes must use the exact curre
 
 Mutation IDs are idempotency identities, not request labels. Reusing one returns its originally stored result even if the retry body differs. A client must never intentionally reuse a mutation ID for another logical mutation.
 
+The 25-mutation maximum remains compatible with existing clients. A push uses at
+most 25 insert statements plus one receipt query, leaving room for session
+queries under the Cloudflare D1 free-tier per-invocation query budget. All
+statements are submitted as one transactional D1 batch, preserving request
+order.
+
 ## Pull
 
-`GET /v1/sync/pull?cursor=0&limit=100`
+`GET /v1/sync/pull?cursor=0&limit=50`
 
 ```json
 {
@@ -71,11 +77,14 @@ Mutation IDs are idempotency identities, not request labels. Reusing one returns
 
 Changes are ordered by a global monotonic cursor but selected by the authenticated user before pagination. Cursor gaps are normal and do not reveal other users. Continue from `nextCursor` while `hasMore` is true. Deletes appear as records with `deleted: true` and `payload: null`.
 
+The default page size is 50 and the maximum is 100. With a 64 KiB per-record
+payload ceiling this keeps one worst-case page bounded for mobile clients.
+
 ## Account response
 
 The account endpoint returns only the current user and provider identifiers. Internal placeholder emails are returned as `null` with `emailIsPlaceholder: true`. Provider access and refresh tokens are never returned.
 
-Remote deletion requires a session created within the previous 24 hours. Provider unlinking happens before the D1 user row is deleted. A provider outage returns a retryable error and keeps the database account available for another attempt.
+Remote deletion requires a session created within the previous 24 hours. Provider unlinking is attempted before the D1 user row is deleted. A provider outage is recorded without user data or tokens and does not block deletion of the local account.
 
 ## Public errors
 

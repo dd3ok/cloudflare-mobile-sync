@@ -1,12 +1,12 @@
 # OAuth provider setup and verification
 
-Reviewed: 2026-07-21
+Reviewed: 2026-07-23
 
 Provider applications and secrets are owner-controlled external resources. The repository does not create them. Enable only providers for which both client ID and client secret are set.
 
 ## Callback model
 
-Providers return to the Worker. Better Auth validates the provider response, creates the database session, and then returns to the allowlisted app callback such as `cloudflare-mobile-sync://auth/callback`.
+Providers return to the Worker. Better Auth validates the provider response, creates the database session, and then returns to an exact allowlisted callback such as `com.acme.myapp://auth/callback`.
 
 For a deployed Worker origin `https://sync.example.com`, register these exact provider callbacks:
 
@@ -16,7 +16,7 @@ For a deployed Worker origin `https://sync.example.com`, register these exact pr
 | Kakao | `https://sync.example.com/v1/auth/oauth2/callback/kakao` |
 | Naver | `https://sync.example.com/v1/auth/oauth2/callback/naver` |
 
-Set `BETTER_AUTH_URL=https://sync.example.com` without the `/v1/auth` suffix. Put the app scheme or universal-link origin in `TRUSTED_ORIGINS`; do not use a wildcard credentialed origin.
+Set `BETTER_AUTH_URL=https://sync.example.com` without the `/v1/auth` suffix. Put the reverse-domain app scheme in `TRUSTED_ORIGINS`; do not use a wildcard credentialed origin. Better Auth Expo 1.6.23 does not transfer its session cookie to an HTTP(S) callback, so a universal/app link is not a drop-in replacement for this flow.
 
 Keep the consuming app's public provider list aligned with the server. Leave it
 empty for local-only use, set `EXPO_PUBLIC_MOBILE_SYNC_PROVIDERS=google` after

@@ -19,7 +19,7 @@ export const enabledProviders: readonly ProviderId[] = supportedProviders.filter
 
 export const authClient = createExpoAuthClient({
   baseUrl: syncBaseUrl,
-  scheme: "cloudflare-mobile-sync",
+  scheme: "com.example.cloudflaremobilesync",
   storagePrefix: "cloudflare-mobile-sync-example",
 });
 

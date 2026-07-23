@@ -1,6 +1,6 @@
 # Operations guide
 
-Reviewed: 2026-07-21
+Reviewed: 2026-07-23
 
 This is a CLI-first self-hosted starter. The owner Worker and production D1
 database were deployed on 2026-07-21 at
@@ -32,7 +32,7 @@ app rather than turning this repository into a product-specific SDK:
 
 | Expo setting | Recommended form | Example |
 | --- | --- | --- |
-| `scheme` | short lowercase app name | `my-app` |
+| `scheme` | reverse-domain name controlled by the publisher | `com.acme.myapp` |
 | `ios.bundleIdentifier` | unique reverse-DNS identifier | `com.acme.myapp` |
 | `android.package` | unique reverse-DNS identifier; lowercase segments | `com.acme.myapp` |
 
@@ -68,9 +68,9 @@ pnpm --filter @cloudflare-mobile-sync/worker exec wrangler d1 create cloudflare-
 
 For this owner account, that resource already exists and its returned ID is
 committed in `apps/worker/wrangler.jsonc`. The account had no other Workers when
-rate-limit `namespace_id` `1001` was selected. A different adopter must create a
-separate D1 database, replace the committed ID, and verify that the namespace ID
-is unique in their account.
+rate-limit `namespace_id` values `1001` and `1003` were selected. A different
+adopter must create a separate D1 database, replace the committed ID, and verify
+that both namespace IDs are unique in their account.
 
 Use an environment-specific database name such as
 `cloudflare-mobile-sync-prod`. Keep the binding name `DB`; portable Worker code
@@ -87,7 +87,7 @@ The minimum production values then become:
 
 ```text
 BETTER_AUTH_URL=https://your-worker.your-subdomain.workers.dev
-TRUSTED_ORIGINS=my-app://
+TRUSTED_ORIGINS=com.acme.myapp://
 ALLOWED_COLLECTIONS=notes
 EXPO_PUBLIC_MOBILE_SYNC_URL=https://your-worker.your-subdomain.workers.dev
 EXPO_PUBLIC_MOBILE_SYNC_PROVIDERS=
@@ -127,10 +127,33 @@ use Wrangler's versioned secret commands or another atomic deployment; plain
 
 Verify `/health`, an unauthenticated rejection, provider callbacks, a two-user isolation test, mutation replay, account deletion, and provider-console unlink state after deployment.
 
+Worker-owned provider profile and revocation requests time out after 10 seconds.
+The Expo sync transport defaults to 15 seconds per attempt and supports a
+smaller `requestTimeoutMilliseconds` value for host-specific needs.
+
+Persisted Worker logs are enabled, while automatic invocation logs are disabled
+to keep the default signal small. Unexpected failures include only a request ID,
+method, path without query parameters, and error class. Provider-revocation
+warnings include provider names only. Match a client-visible `X-Request-ID` in
+the Cloudflare Workers Logs dashboard or with `wrangler tail`; never add request
+bodies, cookies, authorization headers, OAuth query strings, or raw errors to
+these records.
+
 ## Migrations and rollback
 
 - Every schema change is a new numbered SQL migration. Never edit a migration already applied remotely.
 - Test migrations against disposable local state before remote application.
+- Before applying migration `0003_account_identity.sql` to an existing database,
+  run the following read-only query. Any result needs an owner-reviewed account
+  recovery decision; do not delete a duplicate automatically:
+
+  ```sql
+  SELECT providerId, accountId, COUNT(*) AS copies
+  FROM account
+  GROUP BY providerId, accountId
+  HAVING COUNT(*) > 1;
+  ```
+
 - Export a backup before a consequential migration with Wrangler's remote D1 export command and store it outside the repository.
 - D1 migrations are forward-only. Rolling back Worker code is safe only when the older code is compatible with the migrated schema; otherwise write a forward repair migration and test it locally.
 - Never commit an export because it may contain sessions, encrypted provider tokens, profiles, and host-app data.

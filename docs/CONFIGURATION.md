@@ -1,6 +1,6 @@
 # Configuration contract
 
-Reviewed: 2026-07-21
+Reviewed: 2026-07-23
 
 Configuration is split by trust boundary. The portable packages accept options
 and never read environment variables themselves.
@@ -42,10 +42,12 @@ D1 database: cloudflare-mobile-sync-prod
 D1 binding: DB
 ```
 
-Its production trusted-origin allowlist contains only the three compiled
-Byulsata app schemes (`byeolsata-dev://`, `byeolsata-preview://`, and
-`byeolsata://`). The generic example scheme remains a local-development
-default and is not authorized against the maintainer Worker.
+Its production trusted-origin allowlist contains only the three Byulsata build
+schemes (`com.byeolsata.app.dev://`, `com.byeolsata.app.preview://`, and
+`com.byeolsata.app://`). All mobile schemes must use reverse-domain notation.
+The generic local example uses
+`com.example.cloudflaremobilesync://` and is not authorized against the
+maintainer Worker.
 
 The D1 ID and public Worker origin are deployment configuration, not credentials.
 `BETTER_AUTH_SECRET`, `BETTER_AUTH_SECRETS`, and provider credentials remain

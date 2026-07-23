@@ -11,6 +11,7 @@ export interface Env {
   KAKAO_CLIENT_SECRET?: string;
   NAVER_CLIENT_ID?: string;
   NAVER_CLIENT_SECRET?: string;
+  AUTH_RATE_LIMITER: RateLimit;
   SYNC_RATE_LIMITER: RateLimit;
 }
 

@@ -3,6 +3,8 @@
 - Status: accepted
 - Date: 2026-07-20
 
+The provider-outage behavior in this ADR is superseded by ADR 0006.
+
 ## Decision
 
 Remote account deletion requires a fresh authenticated session. The Worker first
