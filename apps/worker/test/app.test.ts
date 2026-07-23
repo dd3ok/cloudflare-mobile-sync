@@ -18,6 +18,8 @@ interface UserRow {
   image: string | null;
 }
 
+const TEST_COLLECTION = "saved-readings-v1";
+
 async function authenticate(request: Request): Promise<AuthenticatedUser | null> {
   const id = request.headers.get("X-Test-User");
   if (!id) return null;
@@ -160,6 +162,36 @@ describe("Worker API", () => {
     });
   });
 
+  it("allows only the production Byulsata sync collections", async () => {
+    await seedUser("collection-policy-user");
+
+    for (const collection of ["saved-readings-v1", "app-settings-v1"]) {
+      const response = await push("collection-policy-user", [
+        {
+          mutationId: `collection-policy-${collection}`,
+          collection,
+          recordId: "record-1",
+          operation: "put",
+          baseRevision: 0,
+          payload: { value: collection },
+        },
+      ]);
+      expect(response.status).toBe(200);
+    }
+
+    const notes = await push("collection-policy-user", [
+      {
+        mutationId: "collection-policy-notes",
+        collection: "notes",
+        recordId: "record-1",
+        operation: "put",
+        baseRevision: 0,
+        payload: { value: "notes" },
+      },
+    ]);
+    expect(notes.status).toBe(403);
+  });
+
   it("logs an opaque unexpected error without leaking its message", async () => {
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const failingApp = createApp({
@@ -187,7 +219,7 @@ describe("Worker API", () => {
     const create = await push("alice", [
       {
         mutationId: "alice-create",
-        collection: "notes",
+        collection: TEST_COLLECTION,
         recordId: "note-1",
         operation: "put",
         baseRevision: 0,
@@ -206,7 +238,7 @@ describe("Worker API", () => {
     const replay = await push("alice", [
       {
         mutationId: "alice-create",
-        collection: "notes",
+        collection: TEST_COLLECTION,
         recordId: "note-1",
         operation: "put",
         baseRevision: 0,
@@ -227,7 +259,7 @@ describe("Worker API", () => {
     const stale = await push("alice", [
       {
         mutationId: "alice-stale",
-        collection: "notes",
+        collection: TEST_COLLECTION,
         recordId: "note-1",
         operation: "put",
         baseRevision: 0,
@@ -247,7 +279,7 @@ describe("Worker API", () => {
     const update = await push("alice", [
       {
         mutationId: "alice-update",
-        collection: "notes",
+        collection: TEST_COLLECTION,
         recordId: "note-1",
         operation: "put",
         baseRevision: 1,
@@ -255,7 +287,7 @@ describe("Worker API", () => {
       },
       {
         mutationId: "alice-delete",
-        collection: "notes",
+        collection: TEST_COLLECTION,
         recordId: "note-1",
         operation: "delete",
         baseRevision: 2,
@@ -285,7 +317,7 @@ describe("Worker API", () => {
     const bobConflict = await push("bob", [
       {
         mutationId: "bob-stale",
-        collection: "notes",
+        collection: TEST_COLLECTION,
         recordId: "note-1",
         operation: "put",
         baseRevision: 3,
@@ -298,7 +330,7 @@ describe("Worker API", () => {
     const bobDelete = await push("bob", [
       {
         mutationId: "bob-delete",
-        collection: "notes",
+        collection: TEST_COLLECTION,
         recordId: "note-1",
         operation: "delete",
         baseRevision: 3,
@@ -314,7 +346,7 @@ describe("Worker API", () => {
     await push("concurrent-user", [
       {
         mutationId: "concurrent-create",
-        collection: "notes",
+        collection: TEST_COLLECTION,
         recordId: "shared-note",
         operation: "put",
         baseRevision: 0,
@@ -326,7 +358,7 @@ describe("Worker API", () => {
       push("concurrent-user", [
         {
           mutationId: "concurrent-left",
-          collection: "notes",
+          collection: TEST_COLLECTION,
           recordId: "shared-note",
           operation: "put",
           baseRevision: 1,
@@ -336,7 +368,7 @@ describe("Worker API", () => {
       push("concurrent-user", [
         {
           mutationId: "concurrent-right",
-          collection: "notes",
+          collection: TEST_COLLECTION,
           recordId: "shared-note",
           operation: "put",
           baseRevision: 1,
@@ -362,7 +394,7 @@ describe("Worker API", () => {
       "full-batch-user",
       Array.from({ length: 25 }, (_, index) => ({
         mutationId: `full-batch-${index}`,
-        collection: "notes",
+        collection: TEST_COLLECTION,
         recordId: `full-batch-note-${index}`,
         operation: "put",
         baseRevision: 0,
@@ -414,7 +446,7 @@ describe("Worker API", () => {
           mutations: [
             {
               mutationId: "forged",
-              collection: "notes",
+              collection: TEST_COLLECTION,
               recordId: "note-1",
               operation: "delete",
               baseRevision: 1,
@@ -429,7 +461,7 @@ describe("Worker API", () => {
     const unknownField = await push("mallory", [
       {
         mutationId: "unknown-field",
-        collection: "notes",
+        collection: TEST_COLLECTION,
         recordId: "note-1",
         operation: "delete",
         baseRevision: 0,
@@ -509,7 +541,7 @@ describe("Worker API", () => {
     await push("private-user", [
       {
         mutationId: "private-create",
-        collection: "notes",
+        collection: TEST_COLLECTION,
         recordId: "private-note",
         operation: "put",
         baseRevision: 0,
@@ -574,7 +606,7 @@ describe("Worker API", () => {
     await push("provider-outage-user", [
       {
         mutationId: "provider-outage-create",
-        collection: "notes",
+        collection: TEST_COLLECTION,
         recordId: "private-record",
         operation: "put",
         baseRevision: 0,

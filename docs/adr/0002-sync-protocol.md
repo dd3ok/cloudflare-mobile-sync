@@ -27,7 +27,7 @@ Initial limits are intentionally conservative:
 | --- | ---: |
 | Request body | 256 KiB |
 | Mutations per push | 25 |
-| Pull page | default 100, maximum 200 |
+| Pull page | default 50, maximum 100 |
 | JSON payload | 64 KiB after serialization |
 | JSON nesting | 20 levels |
 | Collection name | 64 characters |
@@ -52,4 +52,3 @@ read-then-write race.
 - Combined bidirectional transaction: complicates retry and partial conflict
   handling without improving the first vertical slice.
 - Tombstone pruning: unsafe until a reset/snapshot protocol exists.
-
