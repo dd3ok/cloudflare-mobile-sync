@@ -45,6 +45,8 @@ D1 binding: DB
 Its production trusted-origin allowlist contains only the three Byulsata build
 schemes (`com.byeolsata.app.dev://`, `com.byeolsata.app.preview://`, and
 `com.byeolsata.app://`). All mobile schemes must use reverse-domain notation.
+Its application-data allowlist contains only `saved-readings-v1` and
+`app-settings-v1`, the two collections explicitly synchronized by Byulsata.
 The generic local example uses
 `com.example.cloudflaremobilesync://` and is not authorized against the
 maintainer Worker.

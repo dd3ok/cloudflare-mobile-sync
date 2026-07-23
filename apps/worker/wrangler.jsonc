@@ -44,7 +44,7 @@
     "required": ["BETTER_AUTH_SECRET", "BETTER_AUTH_SECRETS"]
   },
   "vars": {
-    "ALLOWED_COLLECTIONS": "notes",
+    "ALLOWED_COLLECTIONS": "saved-readings-v1,app-settings-v1",
     "BETTER_AUTH_URL": "https://cloudflare-mobile-sync.ponntailstudio.workers.dev",
     "TRUSTED_ORIGINS": "com.byeolsata.app.dev://,com.byeolsata.app.preview://,com.byeolsata.app://"
   }

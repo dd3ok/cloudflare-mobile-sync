@@ -134,9 +134,10 @@ DELETE /v1/account
    deployed, all committed migrations are applied, and Google credentials and
    the Worker callback are configured. The Byulsata app consumes one pinned
    archive set of the three private client packages and exposes optional login,
-   session restoration, logout, and account deletion without uploading its
-   local domain data. Android real-account login, callback return, session
-   restoration, and logout are verified there. ANT HELL independently consumes
+   session restoration, logout, account deletion, and explicit synchronization
+   of versioned saved-reading records and the app theme preference. Android
+   real-account login, callback return, session restoration, and logout are
+   verified there. ANT HELL independently consumes
    the HTTP authentication contract from Godot and has verified Android login
    and callback return against a separate Worker and D1 database. Account
    deletion regression checks, iOS verification, and Kakao/Naver setup remain.
