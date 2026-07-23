@@ -159,8 +159,8 @@ export async function syncOnce(
   store: SyncStore,
   options: SyncOnceOptions = {},
 ): Promise<SyncOnceResult> {
-  const pushBatchSize = options.pushBatchSize ?? 25;
-  const pullPageSize = options.pullPageSize ?? 100;
+  const pushBatchSize = options.pushBatchSize ?? LIMITS.pushMutations;
+  const pullPageSize = options.pullPageSize ?? LIMITS.pullDefault;
   const maximumPullPages = options.maximumPullPages ?? 20;
   if (
     !Number.isInteger(pushBatchSize) ||

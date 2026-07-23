@@ -141,8 +141,9 @@ describe("syncOnce", () => {
           ],
         };
       },
-      async pull() {
+      async pull(query) {
         calls.push("pull");
+        expect(query?.limit).toBe(50);
         pullCount += 1;
         return pullCount === 1
           ? { changes: [], nextCursor: 1, hasMore: true }

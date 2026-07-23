@@ -9,6 +9,6 @@ export const auth = betterAuth({
   secret: "schema-generation-only-not-used-at-runtime",
   rateLimit: {
     enabled: true,
-    storage: "database",
+    storage: "memory",
   },
 });

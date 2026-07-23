@@ -6,6 +6,14 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": false,
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": false
+    }
+  },
   "d1_databases": [
     {
       "binding": "DB",
@@ -15,6 +23,14 @@
     }
   ],
   "ratelimits": [
+    {
+      "name": "AUTH_RATE_LIMITER",
+      "namespace_id": "1003",
+      "simple": {
+        "limit": 60,
+        "period": 60
+      }
+    },
     {
       "name": "SYNC_RATE_LIMITER",
       "namespace_id": "1001",
@@ -30,6 +46,6 @@
   "vars": {
     "ALLOWED_COLLECTIONS": "notes",
     "BETTER_AUTH_URL": "https://cloudflare-mobile-sync.ponntailstudio.workers.dev",
-    "TRUSTED_ORIGINS": "byeolsata-dev://,byeolsata-preview://,byeolsata://"
+    "TRUSTED_ORIGINS": "com.byeolsata.app.dev://,com.byeolsata.app.preview://,com.byeolsata.app://"
   }
 }

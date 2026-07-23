@@ -61,7 +61,7 @@ Cloudflare D1
 ### `packages/expo-client`
 
 - Expo SDK 57-compatible SecureStore adapter
-- App-scheme/universal-link callback handling
+- Maintained custom-scheme callback handling; claimed-HTTPS handoff remains deferred
 - Expo/mobile authentication integration
 - Lifecycle and network adapters where necessary
 - No provider client secrets and no direct D1 access
@@ -81,7 +81,8 @@ Cloudflare D1
 4. Add Kakao and Naver through documented OIDC/generic OAuth mechanisms or small provider adapters. Keep provider-specific profile normalization server-side.
 5. Identify accounts by the tuple of provider and provider subject/account ID. Email is profile data, not a globally trusted identity key.
 6. Account linking must require an authenticated session plus fresh proof from the provider being linked. Do not silently link by matching email.
-7. Mobile redirects must use exact allowlisted schemes/URLs and preserve OAuth CSRF protections.
+7. Mobile redirects must use an exact allowlisted reverse-domain scheme and
+   preserve OAuth CSRF protections.
 8. Support logout, current-session revocation, all-session revocation, provider unlinking with lockout protection, account deletion, and deletion verification.
 
 ## Sync protocol baseline

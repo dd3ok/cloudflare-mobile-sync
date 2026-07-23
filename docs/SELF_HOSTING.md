@@ -1,6 +1,6 @@
 # Self-hosting guide
 
-Reviewed: 2026-07-21
+Reviewed: 2026-07-23
 
 Cloudflare Mobile Sync is distributed as source code, not as a shared hosted
 service. Every adopter deploys one Worker and one D1 database to an account they
@@ -60,10 +60,11 @@ assigned `https://<worker>.<account-subdomain>.workers.dev` origin or a stable
 Custom Domain. Set `BETTER_AUTH_URL` to that origin without `/v1/auth` or a
 trailing slash.
 
-For a native app with scheme `my-app`, use the exact production origin:
+For a native app, use a scheme derived from a domain the publisher controls,
+in reverse-domain notation. For scheme `com.acme.myapp`, the exact origin is:
 
 ```jsonc
-"TRUSTED_ORIGINS": "my-app://"
+"TRUSTED_ORIGINS": "com.acme.myapp://"
 ```
 
 Multiple explicitly supported apps or build variants use a comma-separated
@@ -185,6 +186,12 @@ Compile the app's stable scheme into a development build and pass the same
 scheme to `createExpoAuthClient`. Expo Go is not a production OAuth verification
 target. Keep login and remote sync optional so the host app continues working
 offline.
+
+The maintained Better Auth Expo cookie bridge currently returns the session via
+a custom-scheme callback. Switching only the callback to an HTTPS universal/app
+link does not work because Better Auth 1.6.23 intentionally does not attach the
+cookie to HTTP(S) redirects. This starter does not invent a session-token
+exchange protocol; see ADR 0008 before changing this flow.
 
 ## 8. Production verification
 

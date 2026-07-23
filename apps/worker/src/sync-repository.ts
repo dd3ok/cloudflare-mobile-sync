@@ -67,56 +67,67 @@ function recordFromReceipt(row: MutationReceiptRow): SyncRecord | null {
   };
 }
 
-export async function pushMutation(
+export async function pushMutations(
   db: D1Database,
   userId: string,
-  mutation: SyncMutation,
-): Promise<MutationResult> {
+  mutations: readonly SyncMutation[],
+): Promise<MutationResult[]> {
+  if (mutations.length === 0) return [];
   const createdAt = new Date().toISOString();
-  const insert = db
-    .prepare(
-      `INSERT INTO sync_mutations (
-        user_id, mutation_id, collection, record_id, operation,
-        base_revision, payload, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(user_id, mutation_id) DO NOTHING`,
-    )
-    .bind(
-      userId,
-      mutation.mutationId,
-      mutation.collection,
-      mutation.recordId,
-      mutation.operation,
-      mutation.baseRevision,
-      mutation.operation === "put" ? JSON.stringify(mutation.payload) : null,
-      createdAt,
-    );
-  const receipt = db
+  const inserts = mutations.map((mutation) =>
+    db
+      .prepare(
+        `INSERT INTO sync_mutations (
+          user_id, mutation_id, collection, record_id, operation,
+          base_revision, payload, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, mutation_id) DO NOTHING`,
+      )
+      .bind(
+        userId,
+        mutation.mutationId,
+        mutation.collection,
+        mutation.recordId,
+        mutation.operation,
+        mutation.baseRevision,
+        mutation.operation === "put" ? JSON.stringify(mutation.payload) : null,
+        createdAt,
+      ),
+  );
+  const placeholders = mutations.map(() => "?").join(", ");
+  const receipts = db
     .prepare(
       `SELECT mutation_id, status, result_collection, result_record_id,
         result_revision, result_cursor, result_deleted, result_payload,
         result_updated_at
       FROM sync_mutations
-      WHERE user_id = ? AND mutation_id = ?`,
+      WHERE user_id = ? AND mutation_id IN (${placeholders})`,
     )
-    .bind(userId, mutation.mutationId);
+    .bind(userId, ...mutations.map((mutation) => mutation.mutationId));
 
-  const batchResults = await db.batch([insert, receipt]);
-  const insertResult = batchResults[0];
-  const receiptResult = batchResults[1] as D1Result<MutationReceiptRow> | undefined;
-  if (!insertResult || !receiptResult) throw new Error("Mutation batch returned no result");
-  const row = receiptResult.results[0];
-  if (!row || (row.status !== "accepted" && row.status !== "conflict")) {
-    throw new Error("Mutation receipt was not finalized");
-  }
-  const replayed = insertResult.meta.changes === 0;
-  const record = recordFromReceipt(row);
+  const batchResults = await db.batch([...inserts, receipts]);
+  const receiptResult = batchResults[mutations.length] as D1Result<MutationReceiptRow> | undefined;
+  if (!receiptResult) throw new Error("Mutation batch returned no receipts");
+  const receiptByMutationId = new Map(
+    receiptResult.results.map((receipt) => [receipt.mutation_id, receipt]),
+  );
 
-  if (row.status === "accepted") {
-    if (!record) throw new Error("Accepted mutation is missing its record snapshot");
-    return { mutationId: row.mutation_id, status: "accepted", replayed, record };
-  }
-  return { mutationId: row.mutation_id, status: "conflict", replayed, current: record };
+  return mutations.map((mutation, index) => {
+    const insertResult = batchResults[index];
+    if (!insertResult) throw new Error("Mutation batch returned no insert result");
+    const row = receiptByMutationId.get(mutation.mutationId);
+    if (!row || (row.status !== "accepted" && row.status !== "conflict")) {
+      throw new Error("Mutation receipt was not finalized");
+    }
+    const replayed = insertResult.meta.changes === 0;
+    const record = recordFromReceipt(row);
+
+    if (row.status === "accepted") {
+      if (!record) throw new Error("Accepted mutation is missing its record snapshot");
+      return { mutationId: row.mutation_id, status: "accepted", replayed, record };
+    }
+    return { mutationId: row.mutation_id, status: "conflict", replayed, current: record };
+  });
 }
 
 export async function pullChanges(

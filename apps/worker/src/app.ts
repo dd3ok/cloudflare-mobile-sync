@@ -10,9 +10,9 @@ import { type AuthenticatedUser, getAccount, revokeProvidersAndDelete } from "./
 import { createAuth } from "./auth";
 import { commaSeparated, type Env } from "./env";
 import { errorEnvelope, PublicError } from "./errors";
-import { pullChanges, pushMutation } from "./sync-repository";
+import { pullChanges, pushMutations } from "./sync-repository";
 
-type Variables = { user: AuthenticatedUser };
+type Variables = { requestId: string; user: AuthenticatedUser };
 type Authenticate = (request: Request, env: Env) => Promise<AuthenticatedUser | null>;
 type DeleteAccount = (request: Request, env: Env, user: AuthenticatedUser) => Promise<void>;
 
@@ -38,10 +38,28 @@ async function parseBody(request: Request): Promise<unknown> {
   if (declaredLength > LIMITS.requestBodyBytes) {
     throw new PublicError(413, "PAYLOAD_TOO_LARGE", "Request body is too large");
   }
-  const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > LIMITS.requestBodyBytes) {
-    throw new PublicError(413, "PAYLOAD_TOO_LARGE", "Request body is too large");
+  const reader = request.body?.getReader();
+  const decoder = new TextDecoder();
+  const parts: string[] = [];
+  let receivedBytes = 0;
+  if (reader) {
+    try {
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        receivedBytes += chunk.value.byteLength;
+        if (receivedBytes > LIMITS.requestBodyBytes) {
+          await reader.cancel().catch(() => undefined);
+          throw new PublicError(413, "PAYLOAD_TOO_LARGE", "Request body is too large");
+        }
+        parts.push(decoder.decode(chunk.value, { stream: true }));
+      }
+      parts.push(decoder.decode());
+    } finally {
+      reader.releaseLock();
+    }
   }
+  const text = parts.join("");
   try {
     return JSON.parse(text);
   } catch {
@@ -53,15 +71,37 @@ function allowedCollections(env: Env): ReadonlySet<string> {
   return new Set(commaSeparated(env.ALLOWED_COLLECTIONS));
 }
 
+async function consumeRateLimit(
+  limiter: RateLimit,
+  key: string,
+  units: number,
+  message: string,
+): Promise<void> {
+  for (let unit = 0; unit < units; unit += 1) {
+    const result = await limiter.limit({ key });
+    if (!result.success) throw new PublicError(429, "RATE_LIMITED", message, true);
+  }
+}
+
 export function createApp(dependencies: AppDependencies = {}) {
   const app = new Hono<{ Bindings: Env; Variables: Variables }>();
   const authenticate = dependencies.authenticate ?? defaultAuthenticate;
 
   app.use("*", async (context, next) => {
-    await next();
-    context.header("Cache-Control", "no-store");
-    context.header("Referrer-Policy", "no-referrer");
-    context.header("X-Content-Type-Options", "nosniff");
+    const cloudflareRay = context.req.header("cf-ray")?.trim();
+    const requestId =
+      cloudflareRay && /^[A-Za-z0-9-]{1,64}$/u.test(cloudflareRay)
+        ? cloudflareRay
+        : crypto.randomUUID();
+    context.set("requestId", requestId);
+    try {
+      await next();
+    } finally {
+      context.header("Cache-Control", "no-store");
+      context.header("Referrer-Policy", "no-referrer");
+      context.header("X-Content-Type-Options", "nosniff");
+      context.header("X-Request-ID", requestId);
+    }
   });
 
   app.get("/health", async (context) => {
@@ -69,6 +109,16 @@ export function createApp(dependencies: AppDependencies = {}) {
     return context.json({ ok: true, version: API_VERSION } as const);
   });
 
+  app.use("/v1/auth/*", async (context, next) => {
+    const clientIp = context.req.header("cf-connecting-ip")?.trim() || "unknown";
+    await consumeRateLimit(
+      context.env.AUTH_RATE_LIMITER,
+      clientIp,
+      1,
+      "Too many authentication requests",
+    );
+    await next();
+  });
   app.all("/v1/auth/*", (context) => createAuth(context.env).handler(context.req.raw));
 
   app.use("/v1/sync/*", async (context, next) => {
@@ -86,11 +136,6 @@ export function createApp(dependencies: AppDependencies = {}) {
 
   app.post("/v1/sync/push", async (context) => {
     const user = context.get("user");
-    const rate = await context.env.SYNC_RATE_LIMITER.limit({ key: user.id });
-    if (!rate.success) {
-      throw new PublicError(429, "RATE_LIMITED", "Too many sync writes", true);
-    }
-
     const parsed = pushRequestSchema.safeParse(await parseBody(context.req.raw));
     if (!parsed.success) {
       throw new PublicError(400, "VALIDATION_ERROR", "Invalid sync mutation request");
@@ -99,11 +144,14 @@ export function createApp(dependencies: AppDependencies = {}) {
     if (parsed.data.mutations.some((mutation) => !allowed.has(mutation.collection))) {
       throw new PublicError(403, "FORBIDDEN", "Collection is not allowed");
     }
+    await consumeRateLimit(
+      context.env.SYNC_RATE_LIMITER,
+      `push:${user.id}`,
+      parsed.data.mutations.length,
+      "Too many sync writes",
+    );
 
-    const results = [];
-    for (const mutation of parsed.data.mutations) {
-      results.push(await pushMutation(context.env.DB, user.id, mutation));
-    }
+    const results = await pushMutations(context.env.DB, user.id, parsed.data.mutations);
     return context.json({ results });
   });
 
@@ -115,6 +163,12 @@ export function createApp(dependencies: AppDependencies = {}) {
     if (!parsed.success) {
       throw new PublicError(400, "VALIDATION_ERROR", "Invalid pull cursor or page limit");
     }
+    await consumeRateLimit(
+      context.env.SYNC_RATE_LIMITER,
+      `pull:${context.get("user").id}`,
+      1,
+      "Too many sync reads",
+    );
     return context.json(
       await pullChanges(
         context.env.DB,
@@ -138,7 +192,18 @@ export function createApp(dependencies: AppDependencies = {}) {
       await dependencies.deleteAccount(context.req.raw, context.env, user);
     } else {
       const auth = createAuth(context.env);
-      await revokeProvidersAndDelete(context.env, auth, user, context.req.raw.headers);
+      const outcome = await revokeProvidersAndDelete(
+        context.env,
+        auth,
+        user,
+        context.req.raw.headers,
+      );
+      if (outcome.providerRevocationFailures.length > 0) {
+        console.warn("Account deleted after provider revocation failed", {
+          providers: outcome.providerRevocationFailures,
+          requestId: context.get("requestId"),
+        });
+      }
     }
     return context.body(null, 204);
   });
@@ -148,6 +213,14 @@ export function createApp(dependencies: AppDependencies = {}) {
   );
 
   app.onError((error, context) => {
+    if (!(error instanceof PublicError)) {
+      console.error("Unhandled request error", {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        method: context.req.method,
+        path: new URL(context.req.url).pathname,
+        requestId: context.get("requestId"),
+      });
+    }
     const publicError =
       error instanceof PublicError
         ? error

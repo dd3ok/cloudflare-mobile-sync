@@ -43,10 +43,31 @@ describe("API contract", () => {
     expect(jsonPayloadSchema.safeParse(value).success).toBe(false);
   });
 
+  it("rejects adversarial JSON depth without overflowing the call stack", () => {
+    let value: unknown = "leaf";
+    for (let index = 0; index < 5_000; index += 1) value = [value];
+
+    expect(() => jsonPayloadSchema.safeParse(value)).not.toThrow();
+    expect(jsonPayloadSchema.safeParse(value).success).toBe(false);
+  });
+
   it("bounds pull pages", () => {
     expect(pullQuerySchema.parse({})).toEqual({ cursor: 0, limit: LIMITS.pullDefault });
     expect(pullQuerySchema.safeParse({ cursor: 0, limit: LIMITS.pullMaximum + 1 }).success).toBe(
       false,
     );
+  });
+
+  it("preserves the 25-mutation client contract", () => {
+    const mutations = Array.from({ length: 26 }, (_, index) => ({
+      mutationId: `mutation_${index}`,
+      collection: "notes",
+      recordId: `note-${index}`,
+      baseRevision: 0,
+      operation: "delete" as const,
+    }));
+
+    expect(pushRequestSchema.safeParse({ mutations: mutations.slice(0, 25) }).success).toBe(true);
+    expect(pushRequestSchema.safeParse({ mutations }).success).toBe(false);
   });
 });

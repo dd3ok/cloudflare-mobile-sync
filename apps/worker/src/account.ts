@@ -2,6 +2,7 @@ import type { AccountResponse } from "@cloudflare-mobile-sync/api-contract";
 import type { Auth } from "./auth";
 import type { Env } from "./env";
 import { PublicError } from "./errors";
+import { fetchWithTimeout } from "./fetch";
 
 export interface AuthenticatedUser {
   id: string;
@@ -16,6 +17,12 @@ interface AccountRow {
   providerId: string;
   accountId: string;
 }
+
+export interface AccountDeletionOutcome {
+  providerRevocationFailures: string[];
+}
+
+type ProviderAccessRevoker = (account: AccountRow) => Promise<void>;
 
 export async function getAccount(
   db: D1Database,
@@ -56,7 +63,7 @@ async function revokeProvider(
 
   let response: Response;
   if (account.providerId === "google") {
-    response = await fetch("https://oauth2.googleapis.com/revoke", {
+    response = await fetchWithTimeout("https://oauth2.googleapis.com/revoke", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ token: accessToken }),
@@ -64,7 +71,7 @@ async function revokeProvider(
     });
     if (response.ok || response.status === 400) return;
   } else if (account.providerId === "kakao") {
-    response = await fetch("https://kapi.kakao.com/v1/user/unlink", {
+    response = await fetchWithTimeout("https://kapi.kakao.com/v1/user/unlink", {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}` },
       redirect: "error",
@@ -85,7 +92,7 @@ async function revokeProvider(
       access_token: accessToken,
       service_provider: "NAVER",
     });
-    response = await fetch("https://nid.naver.com/oauth2.0/token", {
+    response = await fetchWithTimeout("https://nid.naver.com/oauth2.0/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
@@ -104,22 +111,38 @@ async function revokeProvider(
   );
 }
 
+export async function deleteAccountData(
+  db: D1Database,
+  userId: string,
+  revokeAccess: ProviderAccessRevoker,
+): Promise<AccountDeletionOutcome> {
+  const accounts = await db
+    .prepare(`SELECT id, providerId, accountId FROM account WHERE userId = ? ORDER BY providerId`)
+    .bind(userId)
+    .all<AccountRow>();
+
+  const providerRevocationFailures = new Set<string>();
+  for (const account of accounts.results) {
+    try {
+      await revokeAccess(account);
+    } catch {
+      providerRevocationFailures.add(account.providerId);
+    }
+  }
+
+  const deleted = await db.prepare(`DELETE FROM user WHERE id = ?`).bind(userId).run();
+  if (deleted.meta.changes < 1) throw new Error("Account deletion did not delete a user");
+
+  return { providerRevocationFailures: [...providerRevocationFailures].sort() };
+}
+
 export async function revokeProvidersAndDelete(
   env: Env,
   auth: Auth,
   user: AuthenticatedUser,
   requestHeaders: Headers,
-): Promise<void> {
-  const accounts = await env.DB.prepare(
-    `SELECT id, providerId, accountId FROM account WHERE userId = ? ORDER BY providerId`,
-  )
-    .bind(user.id)
-    .all<AccountRow>();
-
-  for (const account of accounts.results) {
-    await revokeProvider(env, auth, requestHeaders, account);
-  }
-
-  const deleted = await env.DB.prepare(`DELETE FROM user WHERE id = ?`).bind(user.id).run();
-  if (deleted.meta.changes !== 1) throw new Error("Account deletion did not delete one user");
+): Promise<AccountDeletionOutcome> {
+  return deleteAccountData(env.DB, user.id, (account) =>
+    revokeProvider(env, auth, requestHeaders, account),
+  );
 }

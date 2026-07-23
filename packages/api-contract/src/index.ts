@@ -7,8 +7,8 @@ export const LIMITS = {
   payloadBytes: 64 * 1024,
   jsonDepth: 20,
   pushMutations: 25,
-  pullDefault: 100,
-  pullMaximum: 200,
+  pullDefault: 50,
+  pullMaximum: 100,
   collectionLength: 64,
   recordIdLength: 128,
   mutationIdLength: 128,
@@ -17,18 +17,60 @@ export const LIMITS = {
 export type JsonPrimitive = boolean | number | string | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
-const jsonPrimitiveSchema = z.union([z.string(), z.number().finite(), z.boolean(), z.null()]);
-
-export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
-  z.union([jsonPrimitiveSchema, z.array(jsonValueSchema), z.record(z.string(), jsonValueSchema)]),
-);
-
-function jsonDepth(value: JsonValue): number {
-  if (value === null || typeof value !== "object") return 0;
-  const children = Array.isArray(value) ? value : Object.values(value);
-  if (children.length === 0) return 1;
-  return 1 + Math.max(...children.map(jsonDepth));
+interface JsonInspection {
+  depth: number;
+  valid: boolean;
 }
+
+type InspectionEntry =
+  | { kind: "value"; value: unknown; parentDepth: number }
+  | { kind: "exit"; value: object };
+
+function inspectJsonValue(value: unknown): JsonInspection {
+  const stack: InspectionEntry[] = [{ kind: "value", value, parentDepth: 0 }];
+  const activeContainers = new Set<object>();
+  let depth = 0;
+
+  while (stack.length > 0) {
+    const entry = stack.pop();
+    if (!entry) break;
+    if (entry.kind === "exit") {
+      activeContainers.delete(entry.value);
+      continue;
+    }
+
+    const current = entry.value;
+    if (current === null || typeof current === "string" || typeof current === "boolean") {
+      continue;
+    }
+    if (typeof current === "number") {
+      if (!Number.isFinite(current)) return { depth, valid: false };
+      continue;
+    }
+    if (typeof current !== "object") return { depth, valid: false };
+
+    const prototype = Object.getPrototypeOf(current);
+    if (!Array.isArray(current) && prototype !== Object.prototype && prototype !== null) {
+      return { depth, valid: false };
+    }
+    if (activeContainers.has(current)) return { depth, valid: false };
+
+    const currentDepth = entry.parentDepth + 1;
+    depth = Math.max(depth, currentDepth);
+    activeContainers.add(current);
+    stack.push({ kind: "exit", value: current });
+    const children = Array.isArray(current) ? current : Object.values(current);
+    for (const child of children) {
+      stack.push({ kind: "value", value: child, parentDepth: currentDepth });
+    }
+  }
+
+  return { depth, valid: true };
+}
+
+export const jsonValueSchema = z.custom<JsonValue>((value) => inspectJsonValue(value).valid, {
+  message: "Expected a JSON value",
+});
 
 function utf8ByteLength(value: string): number {
   let bytes = 0;
@@ -43,11 +85,13 @@ function utf8ByteLength(value: string): number {
 }
 
 export const jsonPayloadSchema = jsonValueSchema.superRefine((value, context) => {
-  if (jsonDepth(value) > LIMITS.jsonDepth) {
+  const inspection = inspectJsonValue(value);
+  if (inspection.depth > LIMITS.jsonDepth) {
     context.addIssue({
       code: "custom",
       message: `JSON nesting exceeds ${LIMITS.jsonDepth} levels`,
     });
+    return;
   }
 
   const bytes = utf8ByteLength(JSON.stringify(value));
