@@ -1,6 +1,6 @@
 # Self-hosting guide
 
-Reviewed: 2026-07-23
+Reviewed: 2026-08-13
 
 Cloudflare Mobile Sync is distributed as source code, not as a shared hosted
 service. Every adopter deploys one Worker and one D1 database to an account they
@@ -107,9 +107,21 @@ BETTER_AUTH_SECRET=<generated-value>
 BETTER_AUTH_SECRETS=1:<generated-value>
 ```
 
-Provider client IDs and secrets belong in this Worker-only file. Never place a
-provider secret, Better Auth secret, Cloudflare credential, session token, or D1
-ID in an `EXPO_PUBLIC_*` value.
+The committed primary configuration also requires `GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET`; register its exact callback and replace both placeholders
+in the ignored file before preflight. Provider client IDs and secrets belong in
+this Worker-only file. Never place a provider secret, Better Auth secret,
+Cloudflare credential, session token, or D1 ID in an `EXPO_PUBLIC_*` value.
+
+If a fork deliberately removes Google from a deployment, update its provider
+behavior, documentation, tests, and that Wrangler filename's manifest entry as
+one reviewed change. Do not remove only the manifest names to bypass preflight.
+
+Update the entry for your Wrangler filename in
+`apps/worker/required-secrets.json` whenever the Worker gains or removes a
+required secret binding. Run `pnpm test:preflight` after editing configuration.
+The manifest contains names only and is safe to commit; values remain
+exclusively in ignored local files or Cloudflare secrets.
 
 ## 5. Register OAuth callbacks
 
@@ -133,9 +145,15 @@ verification requirements.
 Run the remote migration explicitly before publishing code that depends on it:
 
 ```bash
+pnpm test:preflight
+node --env-file=apps/worker/.env.production scripts/preflight-worker-config.mjs --config apps/worker/wrangler.jsonc --secrets-source environment
 pnpm --filter @cloudflare-mobile-sync/worker exec wrangler d1 migrations apply DB --remote
 pnpm --filter @cloudflare-mobile-sync/worker exec wrangler deploy --secrets-file .env.production
 ```
+
+For later deployments, also run `pnpm preflight:worker` to compare the committed
+requirements with the names already attached to the remote Worker before any
+remote mutation.
 
 Wrangler resolves `DB` through the binding in your edited configuration. The
 secrets file is uploaded as encrypted Worker secrets and must remain outside

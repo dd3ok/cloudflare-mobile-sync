@@ -18,14 +18,19 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm security:secrets",
     "format": "biome format --write .",
     "lint": "biome check .",
-    "security:audit": "pnpm audit --audit-level high",
+    "preflight:ant-hell": "node scripts/preflight-worker-config.mjs --config apps/worker/wrangler.ant-hell.jsonc --secrets-source remote",
+    "preflight:worker": "node scripts/preflight-worker-config.mjs --config apps/worker/wrangler.jsonc --secrets-source remote",
+    "security:audit": "node scripts/security-audit.mjs",
     "security:secrets": "node scripts/check-secrets.mjs",
-    "test": "pnpm -r --if-present test",
+    "test": "pnpm run test:preflight && pnpm -r --if-present test",
+    "test:preflight": "node --test scripts/preflight-worker-config.test.mjs",
     "typecheck": "pnpm build:packages && pnpm -r --if-present typecheck"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.4",
     "@types/node": "24.13.2",
+    "ajv": "8.20.0",
+    "jsonc-parser": "3.3.1",
     "typescript": "6.0.3",
     "vitest": "4.1.10"
   }

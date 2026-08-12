@@ -1,6 +1,6 @@
 # HTTP API
 
-Reviewed: 2026-07-20
+Reviewed: 2026-08-12
 
 All responses are JSON except successful account deletion, which returns an empty `204` response. Application-data endpoints use the Better Auth session established under `/v1/auth/*`. The Worker always derives the user ID from that session; a client-supplied user ID is invalid input.
 
@@ -14,6 +14,12 @@ All responses are JSON except successful account deletion, which returns an empt
 | `GET` | `/v1/sync/pull` | yes | pull bounded changes after a cursor |
 | `GET` | `/v1/account` | yes | current profile and linked providers |
 | `DELETE` | `/v1/account` | fresh session | revoke provider grants and delete remote data |
+
+`/health` returns `{ "ok": true, "version": "v1" }` after a successful D1
+probe. It does not expose configuration, secrets, or a build revision. The
+current manual release flow cannot prove that a locally computed revision
+identifies the uploaded artifact; see the deferred deployment-metadata decision
+in [operations](./OPERATIONS.md).
 
 ## Push
 

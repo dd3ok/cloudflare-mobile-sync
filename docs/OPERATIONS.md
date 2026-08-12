@@ -1,6 +1,6 @@
 # Operations guide
 
-Reviewed: 2026-07-23
+Reviewed: 2026-08-13
 
 This is a CLI-first self-hosted starter. The owner Worker and production D1
 database were deployed on 2026-07-21 at
@@ -104,7 +104,10 @@ Generate high-entropy secrets outside the repository. Copy
 `apps/worker/.env.production.example` to the ignored `.env.production` file. For
 a new installation, use the same initial value for `BETTER_AUTH_SECRET` and
 version 1 of `BETTER_AUTH_SECRETS`; the latter makes new encrypted values
-rotation-aware. Add provider credentials only after registering their callbacks.
+rotation-aware. The committed primary and ANT HELL configurations also require
+`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`; add their real values only after
+registering the exact callback. Kakao and Naver remain optional until their
+deployments intentionally enable them.
 
 ```powershell
 cd apps/worker
@@ -112,10 +115,16 @@ Copy-Item .env.production.example .env.production
 ```
 
 On macOS or Linux, use `cp` instead of `Copy-Item`. Keep the file only on the
-trusted deployment machine. Then apply migrations before deploying code that
-needs them, and upload the initial secrets atomically with the Worker code:
+trusted deployment machine. Before any remote mutation, run `pnpm
+test:preflight`. For an existing deployment also run the matching read-only
+remote name check (`pnpm preflight:worker` or `pnpm preflight:ant-hell`). A first
+deployment has no remote secret names yet; in that case run
+the preflight with `--secrets-source environment` in the process that holds the
+pending secret names. Then apply migrations before deploying code that needs
+them, and upload the initial secrets atomically with the Worker code:
 
 ```bash
+node --env-file=apps/worker/.env.production scripts/preflight-worker-config.mjs --config apps/worker/wrangler.jsonc --secrets-source environment
 pnpm --filter @cloudflare-mobile-sync/worker migrate:remote
 pnpm --filter @cloudflare-mobile-sync/worker exec wrangler deploy --secrets-file .env.production
 ```
@@ -126,6 +135,16 @@ use Wrangler's versioned secret commands or another atomic deployment; plain
 `wrangler secret put` immediately creates and deploys a Worker version.
 
 Verify `/health`, an unauthenticated rejection, provider callbacks, a two-user isolation test, mutation replay, account deletion, and provider-console unlink state after deployment.
+
+`/health` intentionally reports D1 readiness and the public protocol version,
+not a source revision or configuration fingerprint. The current manual release
+flow does not inject an immutable source revision that can be proven to match a
+specific built artifact; returning the package version, selected non-secret
+configuration, or a locally computed dirty-worktree hash would therefore look
+more authoritative than it is. Add deployment-version metadata only together
+with a reproducible release pipeline that binds an immutable revision to the
+uploaded Worker version. No secret or origin/collection policy belongs in the
+health response.
 
 Worker-owned provider profile and revocation requests time out after 10 seconds.
 The Expo sync transport defaults to 15 seconds per attempt and supports a
@@ -172,6 +191,12 @@ Rotate provider client secrets in each provider console, update the correspondin
 - Test restore procedures into a separate disposable D1 database, never over the live binding first.
 - After remote account deletion, confirm the user, session, account, mutation, record, and change rows are absent and confirm provider-console unlink state.
 - Local app data is host-owned and remains by default. If a host app offers local erase, it must be a separate explicit destructive action.
+- For an email request from a former internal-test user who cannot reach the
+  self-service flow, follow the
+  [legacy account-deletion operator runbook](./LEGACY_ACCOUNT_DELETION.md). It
+  requires mailbox verification, exact parameter-bound lookup, independent
+  approval, a one-user guarded cascade, provider-status disclosure, and
+  restore-time deletion reconciliation. There is no admin email-lookup API.
 
 ## Troubleshooting
 
