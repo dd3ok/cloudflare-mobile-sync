@@ -69,7 +69,7 @@ async function revokeProvider(
       body: new URLSearchParams({ token: accessToken }),
       redirect: "error",
     });
-    if (response.ok || response.status === 400) return;
+    if (isGoogleRevocationConfirmed(response)) return;
   } else if (account.providerId === "kakao") {
     response = await fetchWithTimeout("https://kapi.kakao.com/v1/user/unlink", {
       method: "POST",
@@ -109,6 +109,13 @@ async function revokeProvider(
     "The login provider could not complete account unlinking",
     true,
   );
+}
+
+export function isGoogleRevocationConfirmed(response: Response): boolean {
+  // Google's revoke endpoint documents 200 as the confirmation response. Do
+  // not broaden that contract to every 2xx status, and never treat a 400 as
+  // proof that every provider grant for this account has been removed.
+  return response.status === 200;
 }
 
 export async function deleteAccountData(
