@@ -26,6 +26,7 @@
     "@cloudflare-mobile-sync/client-core": "workspace:*",
     "better-auth": "1.6.23",
     "expo-constants": "57.0.6",
+    "expo-crypto": "57.0.1",
     "expo-linking": "57.0.3",
     "expo-network": "57.0.1",
     "expo-secure-store": "57.0.1",

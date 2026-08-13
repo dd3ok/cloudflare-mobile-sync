@@ -12,6 +12,7 @@ async function main() {
     options: {
       config: { type: "string" },
       requirements: { type: "string" },
+      readiness: { type: "string" },
       "secrets-source": { type: "string", default: "remote" },
       "wrangler-script": { type: "string" },
     },
@@ -62,6 +63,41 @@ async function main() {
     const location = firstError?.instancePath || "/";
     const detail = firstError?.message ?? "unknown schema violation";
     throw new Error(`Wrangler config schema validation failed at ${location}: ${detail}`);
+  }
+  if (
+    !Array.isArray(config.triggers?.crons) ||
+    config.triggers.crons.length !== 1 ||
+    config.triggers.crons[0] !== "* * * * *"
+  ) {
+    throw new Error("Wrangler config must schedule security-data maintenance once per minute");
+  }
+  const readinessPath = resolve(
+    values.readiness ?? resolve(dirname(configPath), "deployment-readiness.json"),
+  );
+  let readiness;
+  try {
+    readiness = JSON.parse(await readFile(readinessPath, "utf8"));
+  } catch (error) {
+    if (values.readiness) throw error;
+  }
+  const deploymentReadiness = readiness?.deployments?.[basename(configPath)];
+  if (deploymentReadiness !== undefined) {
+    if (
+      !deploymentReadiness ||
+      !["pending", "ready"].includes(deploymentReadiness.status) ||
+      !Array.isArray(deploymentReadiness.unresolved) ||
+      deploymentReadiness.unresolved.some(
+        (field) => typeof field !== "string" || !/^[A-Za-z][A-Za-z0-9]*$/u.test(field),
+      ) ||
+      new Set(deploymentReadiness.unresolved).size !== deploymentReadiness.unresolved.length
+    ) {
+      throw new Error("Deployment readiness entry is invalid");
+    }
+    if (deploymentReadiness.status !== "ready" || deploymentReadiness.unresolved.length > 0) {
+      throw new Error(
+        `Deployment configuration has unresolved external setup: ${deploymentReadiness.unresolved.join(", ")}`,
+      );
+    }
   }
   const requirementsPath = resolve(
     values.requirements ?? resolve(dirname(configPath), "required-secrets.json"),

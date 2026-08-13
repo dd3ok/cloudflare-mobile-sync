@@ -23,6 +23,11 @@ interface UserRow {
 }
 
 const TEST_COLLECTION = "saved-readings-v1";
+const RETAINED_COLLECTION = "profile-v2";
+const RETAINED_RECORD_ID = "profile-lineage";
+const RETAINED_NAMESPACE = "test-namespace";
+const RETAINED_SCHEMA = "example.profile/v2";
+const DELETION_OPERATION_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 async function authenticate(request: Request): Promise<AuthenticatedUser | null> {
   const id = request.headers.get("X-Test-User");
@@ -75,6 +80,43 @@ async function push(userId: string, mutations: unknown[]): Promise<Response> {
     },
     userId,
   );
+}
+
+async function retainedProfileRequest(
+  path: string,
+  options: RequestInit,
+  userId: string,
+): Promise<Response> {
+  const headers = new Headers(options.headers);
+  headers.set("X-Test-User", userId);
+  return app.request(
+    `https://sync.example.test${path}`,
+    { ...options, headers },
+    {
+      ...env,
+      ALLOWED_COLLECTIONS: `${env.ALLOWED_COLLECTIONS},${RETAINED_COLLECTION}`,
+      RETAINED_TOMBSTONE_TARGETS: [
+        RETAINED_COLLECTION,
+        RETAINED_RECORD_ID,
+        RETAINED_NAMESPACE,
+        RETAINED_SCHEMA,
+        "2",
+      ].join("|"),
+    },
+  );
+}
+
+async function retainedAccountSlotKey(userId: string): Promise<string> {
+  const bytes = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(`${RETAINED_NAMESPACE}:${userId}`),
+  );
+  return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 describe("Worker API", () => {
@@ -319,8 +361,27 @@ describe("Worker API", () => {
     ]);
     const updated = (await update.json()) as PushResponse;
     expect(updated.results).toMatchObject([
-      { status: "accepted", record: { revision: 2, deleted: false } },
       { status: "accepted", record: { revision: 3, deleted: true, payload: null } },
+      { status: "accepted", record: { revision: 3, deleted: true, payload: null } },
+    ]);
+
+    await push("alice", [
+      {
+        mutationId: "alice-page-one",
+        collection: TEST_COLLECTION,
+        recordId: "page-one",
+        operation: "put",
+        baseRevision: 0,
+        payload: { page: 1 },
+      },
+      {
+        mutationId: "alice-page-two",
+        collection: TEST_COLLECTION,
+        recordId: "page-two",
+        operation: "put",
+        baseRevision: 0,
+        payload: { page: 2 },
+      },
     ]);
 
     const firstPage = await apiRequest("/v1/sync/pull?cursor=0&limit=2", {}, "alice");
@@ -333,7 +394,7 @@ describe("Worker API", () => {
       "alice",
     );
     const secondPull = (await secondPage.json()) as PullResponse;
-    expect(secondPull.changes).toMatchObject([{ revision: 3, deleted: true }]);
+    expect(secondPull.changes).toMatchObject([{ recordId: "page-two", deleted: false }]);
     expect(secondPull.hasMore).toBe(false);
 
     const bobPull = await apiRequest("/v1/sync/pull?cursor=0", {}, "bob");
@@ -363,6 +424,439 @@ describe("Worker API", () => {
     expect((await bobDelete.json()) as PushResponse).toMatchObject({
       results: [{ status: "conflict", current: null }],
     });
+  });
+
+  it("keeps a tombstone but erases superseded payload copies after record deletion", async () => {
+    await seedUser("privacy-delete-user");
+
+    await push("privacy-delete-user", [
+      {
+        mutationId: "privacy-create",
+        collection: TEST_COLLECTION,
+        recordId: "private-record",
+        operation: "put",
+        baseRevision: 0,
+        payload: { secret: "first-private-value" },
+      },
+    ]);
+    await push("privacy-delete-user", [
+      {
+        mutationId: "privacy-update",
+        collection: TEST_COLLECTION,
+        recordId: "private-record",
+        operation: "put",
+        baseRevision: 1,
+        payload: { secret: "second-private-value" },
+      },
+      {
+        mutationId: "privacy-conflict",
+        collection: TEST_COLLECTION,
+        recordId: "private-record",
+        operation: "put",
+        baseRevision: 0,
+        payload: { secret: "rejected-private-value" },
+      },
+    ]);
+    const deletion = await push("privacy-delete-user", [
+      {
+        mutationId: "privacy-delete",
+        collection: TEST_COLLECTION,
+        recordId: "private-record",
+        operation: "delete",
+        baseRevision: 2,
+      },
+    ]);
+    expect((await deletion.json()) as PushResponse).toMatchObject({
+      results: [
+        {
+          mutationId: "privacy-delete",
+          status: "accepted",
+          replayed: false,
+          record: { revision: 3, deleted: true, payload: null },
+        },
+      ],
+    });
+
+    const pull = await apiRequest("/v1/sync/pull?cursor=0", {}, "privacy-delete-user");
+    expect(await pull.json()).toMatchObject({
+      changes: [{ revision: 3, deleted: true, payload: null }],
+      hasMore: false,
+    });
+
+    const createReplay = await push("privacy-delete-user", [
+      {
+        mutationId: "privacy-create",
+        collection: TEST_COLLECTION,
+        recordId: "private-record",
+        operation: "put",
+        baseRevision: 0,
+        payload: { secret: "different-retry-value" },
+      },
+    ]);
+    expect((await createReplay.json()) as PushResponse).toMatchObject({
+      results: [
+        {
+          mutationId: "privacy-create",
+          status: "accepted",
+          replayed: true,
+          record: { revision: 3, deleted: true, payload: null },
+        },
+      ],
+    });
+
+    const conflictReplay = await push("privacy-delete-user", [
+      {
+        mutationId: "privacy-conflict",
+        collection: TEST_COLLECTION,
+        recordId: "private-record",
+        operation: "put",
+        baseRevision: 0,
+        payload: { secret: "another-retry-value" },
+      },
+    ]);
+    expect((await conflictReplay.json()) as PushResponse).toMatchObject({
+      results: [
+        {
+          mutationId: "privacy-conflict",
+          status: "conflict",
+          replayed: true,
+          current: { revision: 3, deleted: true, payload: null },
+        },
+      ],
+    });
+
+    const deleteReplay = await push("privacy-delete-user", [
+      {
+        mutationId: "privacy-delete",
+        collection: TEST_COLLECTION,
+        recordId: "private-record",
+        operation: "delete",
+        baseRevision: 2,
+      },
+    ]);
+    expect((await deleteReplay.json()) as PushResponse).toMatchObject({
+      results: [
+        {
+          mutationId: "privacy-delete",
+          status: "accepted",
+          replayed: true,
+          record: { revision: 3, deleted: true, payload: null },
+        },
+      ],
+    });
+
+    const persisted = await env.DB.prepare(
+      `SELECT payload FROM sync_changes WHERE user_id = ?
+       UNION ALL
+       SELECT payload FROM sync_mutations WHERE user_id = ?
+       UNION ALL
+       SELECT result_payload AS payload FROM sync_mutations WHERE user_id = ?`,
+    )
+      .bind("privacy-delete-user", "privacy-delete-user", "privacy-delete-user")
+      .all<{ payload: string | null }>();
+    expect(persisted.results).not.toHaveLength(0);
+    expect(persisted.results.every((row) => row.payload === null)).toBe(true);
+    expect(JSON.stringify(persisted.results)).not.toContain("private-value");
+  });
+
+  it("retains a strict lineage tombstone while transactionally scrubbing prior profile payloads", async () => {
+    const userId = `retained-tombstone-${crypto.randomUUID()}`;
+    await seedUser(userId);
+    const profileEnv = {
+      ...env,
+      ALLOWED_COLLECTIONS: `${env.ALLOWED_COLLECTIONS},${RETAINED_COLLECTION}`,
+      RETAINED_TOMBSTONE_TARGETS: [
+        RETAINED_COLLECTION,
+        RETAINED_RECORD_ID,
+        RETAINED_NAMESPACE,
+        RETAINED_SCHEMA,
+        "2",
+      ].join("|"),
+    };
+    const profilePush = async (mutations: unknown[]) => {
+      const headers = new Headers({ "Content-Type": "application/json", "X-Test-User": userId });
+      return app.request(
+        "https://sync.example.test/v1/sync/push",
+        { method: "POST", headers, body: JSON.stringify({ mutations }) },
+        profileEnv,
+      );
+    };
+    const sensitiveDate = "1988-02-03";
+    expect(
+      (
+        await profilePush([
+          {
+            mutationId: "profile-sensitive-create",
+            collection: RETAINED_COLLECTION,
+            recordId: RETAINED_RECORD_ID,
+            baseRevision: 0,
+            operation: "put",
+            payload: { birthDate: sensitiveDate, name: "private" },
+          },
+          {
+            mutationId: "profile-sensitive-update",
+            collection: RETAINED_COLLECTION,
+            recordId: RETAINED_RECORD_ID,
+            baseRevision: 1,
+            operation: "put",
+            payload: { birthDate: sensitiveDate, birthTime: "12:34" },
+          },
+        ])
+      ).status,
+    ).toBe(200);
+    const accountSlotKey = await retainedAccountSlotKey(userId);
+    const tombstone = {
+      v: 2,
+      accountSlotKey,
+      head: {
+        schema: RETAINED_SCHEMA,
+        lineageId: "11111111-1111-4111-8111-111111111111",
+        versionId: "22222222-2222-4222-8222-222222222222",
+        ancestorVersionIds: ["33333333-3333-4333-8333-333333333333"],
+        writtenAt: "2026-08-13T00:00:00.000Z",
+        value: { state: "deleted" },
+      },
+      consent: null,
+    };
+    const compact = await retainedProfileRequest(
+      "/v1/sync/retained-tombstone",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operationId: "profile-retained-delete",
+          collection: RETAINED_COLLECTION,
+          recordId: RETAINED_RECORD_ID,
+          baseRevision: 2,
+          tombstone,
+        }),
+      },
+      userId,
+    );
+    expect(compact.status).toBe(200);
+    expect(await compact.json()).toMatchObject({
+      status: "accepted",
+      replayed: false,
+      record: { revision: 3, deleted: false, payload: tombstone },
+      receipt: { operationId: "profile-retained-delete" },
+    });
+
+    const pull = await retainedProfileRequest(
+      `/v1/sync/pull?cursor=0&collection=${RETAINED_COLLECTION}`,
+      {},
+      userId,
+    );
+    expect(await pull.json()).toMatchObject({
+      changes: [{ revision: 3, payload: tombstone }],
+      hasMore: false,
+    });
+    const storedCopies = await env.DB.prepare(
+      `SELECT payload AS value FROM sync_changes WHERE user_id = ?
+       UNION ALL SELECT payload FROM sync_mutations WHERE user_id = ?
+       UNION ALL SELECT result_payload FROM sync_mutations WHERE user_id = ?`,
+    )
+      .bind(userId, userId, userId)
+      .all<{ value: string | null }>();
+    expect(JSON.stringify(storedCopies.results)).not.toContain(sensitiveDate);
+
+    const retainedReplay = await retainedProfileRequest(
+      "/v1/sync/retained-tombstone",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operationId: "profile-retained-delete",
+          collection: RETAINED_COLLECTION,
+          recordId: RETAINED_RECORD_ID,
+          baseRevision: 2,
+          tombstone,
+        }),
+      },
+      userId,
+    );
+    expect(await retainedReplay.json()).toMatchObject({
+      status: "accepted",
+      replayed: true,
+      record: { payload: tombstone },
+    });
+
+    const replay = await profilePush([
+      {
+        mutationId: "profile-sensitive-create",
+        collection: RETAINED_COLLECTION,
+        recordId: RETAINED_RECORD_ID,
+        baseRevision: 0,
+        operation: "put",
+        payload: { birthDate: sensitiveDate, name: "private" },
+      },
+    ]);
+    expect(await replay.json()).toMatchObject({
+      results: [{ replayed: true, record: { revision: 3, payload: tombstone } }],
+    });
+  });
+
+  it("rejects retained tombstone escalation and leaves history unchanged on conflict", async () => {
+    const userId = `retained-tombstone-negative-${crypto.randomUUID()}`;
+    await seedUser(userId);
+    const accountSlotKey = await retainedAccountSlotKey(userId);
+    const request = (overrides: Record<string, unknown> = {}) =>
+      retainedProfileRequest(
+        "/v1/sync/retained-tombstone",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            operationId: `negative-${crypto.randomUUID()}`,
+            collection: RETAINED_COLLECTION,
+            recordId: RETAINED_RECORD_ID,
+            baseRevision: 0,
+            tombstone: {
+              v: 2,
+              accountSlotKey,
+              head: {
+                schema: RETAINED_SCHEMA,
+                lineageId: "11111111-1111-4111-8111-111111111111",
+                versionId: "22222222-2222-4222-8222-222222222222",
+                ancestorVersionIds: [],
+                writtenAt: "2026-08-13T00:00:00.000Z",
+                value: { state: "deleted" },
+              },
+              consent: null,
+            },
+            ...overrides,
+          }),
+        },
+        userId,
+      );
+
+    expect((await request({ collection: TEST_COLLECTION })).status).toBe(403);
+    expect((await request({ recordId: "another-profile" })).status).toBe(403);
+    expect(
+      (
+        await request({
+          tombstone: {
+            v: 2,
+            accountSlotKey,
+            head: {
+              schema: RETAINED_SCHEMA,
+              lineageId: "11111111-1111-4111-8111-111111111111",
+              versionId: "22222222-2222-4222-8222-222222222222",
+              ancestorVersionIds: [],
+              writtenAt: "2026-08-13T00:00:00.000Z",
+              value: { state: "deleted", profile: { birthDate: "1988-02-03" } },
+            },
+            consent: null,
+          },
+        })
+      ).status,
+    ).toBe(400);
+
+    await push(userId, [
+      {
+        mutationId: "unrelated-sensitive-record",
+        collection: TEST_COLLECTION,
+        recordId: "keep-me",
+        baseRevision: 0,
+        operation: "put",
+        payload: { birthDate: "1988-02-03" },
+      },
+    ]);
+    const conflict = await request({ baseRevision: 9 });
+    expect(await conflict.json()).toMatchObject({ status: "conflict" });
+    const unrelated = await env.DB.prepare(
+      `SELECT payload FROM sync_changes WHERE user_id = ? AND collection = ? AND record_id = ?`,
+    )
+      .bind(userId, TEST_COLLECTION, "keep-me")
+      .first<{ payload: string }>();
+    expect(unrelated?.payload).toContain("1988-02-03");
+  });
+
+  it("paginates an exact collection feed without scanning unrelated changes", async () => {
+    await seedUser("filtered-pull-user");
+    await push("filtered-pull-user", [
+      {
+        mutationId: "filtered-reading-one",
+        collection: TEST_COLLECTION,
+        recordId: "reading-one",
+        operation: "put",
+        baseRevision: 0,
+        payload: { kind: "reading-one" },
+      },
+      {
+        mutationId: "filtered-theme",
+        collection: "app-settings-v1",
+        recordId: "theme",
+        operation: "put",
+        baseRevision: 0,
+        payload: { kind: "theme" },
+      },
+      {
+        mutationId: "filtered-reading-two",
+        collection: TEST_COLLECTION,
+        recordId: "reading-two",
+        operation: "put",
+        baseRevision: 0,
+        payload: { kind: "reading-two" },
+      },
+    ]);
+
+    const firstPage = await apiRequest(
+      `/v1/sync/pull?cursor=0&limit=1&collection=${TEST_COLLECTION}`,
+      {},
+      "filtered-pull-user",
+    );
+    expect(firstPage.status).toBe(200);
+    const first = (await firstPage.json()) as PullResponse;
+    expect(first).toMatchObject({
+      changes: [{ collection: TEST_COLLECTION, recordId: "reading-one" }],
+      hasMore: true,
+    });
+
+    const secondPage = await apiRequest(
+      `/v1/sync/pull?cursor=${first.nextCursor}&limit=1&collection=${TEST_COLLECTION}`,
+      {},
+      "filtered-pull-user",
+    );
+    const second = (await secondPage.json()) as PullResponse;
+    expect(second).toMatchObject({
+      changes: [{ collection: TEST_COLLECTION, recordId: "reading-two" }],
+      hasMore: false,
+    });
+
+    const themePage = await apiRequest(
+      "/v1/sync/pull?cursor=0&collection=app-settings-v1",
+      {},
+      "filtered-pull-user",
+    );
+    expect(await themePage.json()).toMatchObject({
+      changes: [{ collection: "app-settings-v1", recordId: "theme" }],
+      hasMore: false,
+    });
+
+    const wrongCursorForTheme = await apiRequest(
+      `/v1/sync/pull?cursor=${second.nextCursor}&collection=app-settings-v1`,
+      {},
+      "filtered-pull-user",
+    );
+    expect(await wrongCursorForTheme.json()).toEqual({
+      changes: [],
+      nextCursor: second.nextCursor,
+      hasMore: false,
+    });
+
+    const forbidden = await apiRequest(
+      "/v1/sync/pull?cursor=0&collection=not-allowed",
+      {},
+      "filtered-pull-user",
+    );
+    expect(forbidden.status).toBe(403);
+
+    const invalid = await apiRequest(
+      "/v1/sync/pull?cursor=0&collection=not%20allowed",
+      {},
+      "filtered-pull-user",
+    );
+    expect(invalid.status).toBe(400);
   });
 
   it("accepts only one of two concurrent updates from the same base revision", async () => {
@@ -583,14 +1077,46 @@ describe("Worker API", () => {
       "/v1/account",
       {
         method: "DELETE",
-        headers: { "X-Test-Session-Age-Hours": "25" },
+        headers: {
+          "X-Test-Session-Age-Hours": "25",
+          "X-Mobile-Sync-Expected-Subject": "private-user",
+          "X-Mobile-Sync-Deletion-Operation": DELETION_OPERATION_ID,
+        },
       },
       "private-user",
     );
     expect(staleSession.status).toBe(401);
 
-    const deletion = await apiRequest("/v1/account", { method: "DELETE" }, "private-user");
-    expect(deletion.status).toBe(204);
+    const missingSubject = await apiRequest("/v1/account", { method: "DELETE" }, "private-user");
+    expect(missingSubject.status).toBe(409);
+
+    const wrongSubject = await apiRequest(
+      "/v1/account",
+      {
+        method: "DELETE",
+        headers: { "X-Mobile-Sync-Expected-Subject": "another-user" },
+      },
+      "private-user",
+    );
+    expect(wrongSubject.status).toBe(409);
+
+    const deletion = await apiRequest(
+      "/v1/account",
+      {
+        method: "DELETE",
+        headers: {
+          "X-Mobile-Sync-Expected-Subject": "private-user",
+          "X-Mobile-Sync-Deletion-Operation": DELETION_OPERATION_ID,
+        },
+      },
+      "private-user",
+    );
+    expect(deletion.status).toBe(200);
+    expect(await deletion.json()).toMatchObject({
+      operationId: DELETION_OPERATION_ID,
+      serverDataDeleted: true,
+      providerRevocations: [],
+    });
     expect(
       await env.DB.prepare(`SELECT COUNT(*) AS count FROM user WHERE id = ?`)
         .bind("private-user")
@@ -642,7 +1168,7 @@ describe("Worker API", () => {
       throw new Error("simulated provider outage");
     });
 
-    expect(outcome).toEqual({ providerRevocationFailures: ["google"] });
+    expect(outcome).toEqual({ providerIds: ["google"], providerRevocationFailures: ["google"] });
     expect(
       await env.DB.prepare(`SELECT COUNT(*) AS count FROM user WHERE id = ?`)
         .bind("provider-outage-user")
@@ -653,6 +1179,74 @@ describe("Worker API", () => {
         .bind("provider-outage-user")
         .first("count"),
     ).toBe(0);
+  });
+
+  it("returns and recovers a PII-free provider revocation outcome after response loss", async () => {
+    const userId = `deletion-receipt-${crypto.randomUUID()}`;
+    await seedUser(userId);
+    const operationId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const deletionApp = createApp({
+      authenticate,
+      async deleteAccount(_request, requestEnv, user) {
+        await requestEnv.DB.prepare(`DELETE FROM user WHERE id = ?`).bind(user.id).run();
+        return { providerIds: ["google"], providerRevocationFailures: ["google"] };
+      },
+    });
+    const response = await deletionApp.request(
+      "https://sync.example.test/v1/account",
+      {
+        method: "DELETE",
+        headers: {
+          "X-Test-User": userId,
+          "X-Mobile-Sync-Expected-Subject": userId,
+          "X-Mobile-Sync-Deletion-Operation": operationId,
+        },
+      },
+      env,
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      operationId,
+      serverDataDeleted: true,
+      providerRevocations: [{ providerId: "google", status: "unconfirmed" }],
+    });
+
+    const recovered = await deletionApp.request(
+      "https://sync.example.test/v1/account-deletions/status",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operationId, expectedSubjectId: userId }),
+      },
+      env,
+    );
+    expect(recovered.status).toBe(200);
+    expect(await recovered.json()).toMatchObject({
+      operationId,
+      serverDataDeleted: true,
+      providerRevocations: [{ providerId: "google", status: "unconfirmed" }],
+    });
+    const wrongSubject = await deletionApp.request(
+      "https://sync.example.test/v1/account-deletions/status",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operationId, expectedSubjectId: "another-user" }),
+      },
+      env,
+    );
+    expect(wrongSubject.status).toBe(404);
+    const persisted = await env.DB.prepare(
+      `SELECT operation_hash, subject_hash, result_json FROM account_deletion_receipt
+       WHERE operation_hash = ?`,
+    )
+      .bind(await sha256Hex(operationId))
+      .first<{ operation_hash: string; subject_hash: string; result_json: string }>();
+    expect(persisted).not.toBeNull();
+    expect(persisted?.operation_hash).not.toContain(operationId);
+    expect(persisted?.subject_hash).not.toContain(userId);
+    expect(persisted?.result_json).not.toContain(operationId);
+    expect(persisted?.result_json).not.toContain(userId);
   });
 
   it("fails closed when the local account does not exist", async () => {

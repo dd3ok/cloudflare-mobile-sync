@@ -16,8 +16,9 @@ Use separate bounded push and pull endpoints over HTTPS.
   monotonic D1 change cursor.
 - `(user_id, mutation_id)` is unique. Replaying a mutation returns its original
   accepted/conflict result and creates no duplicate change.
-- Deletes create tombstones. Tombstones and change history are retained
-  indefinitely in v1.
+- Deletes create tombstones. The retention portion of this decision is
+  superseded by ADR 0010: keep the latest tombstone and mutation identities, but
+  compact superseded payload-bearing history for a deleted logical record.
 - A push batch returns an ordered result per mutation. One conflict does not block
   independent mutations in the same HTTP request.
 
@@ -51,4 +52,4 @@ read-then-write race.
   justifies the protocol and client complexity.
 - Combined bidirectional transaction: complicates retry and partial conflict
   handling without improving the first vertical slice.
-- Tombstone pruning: unsafe until a reset/snapshot protocol exists.
+- Latest-tombstone pruning: unsafe until a reset/snapshot protocol exists.

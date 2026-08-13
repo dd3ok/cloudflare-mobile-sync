@@ -11,12 +11,12 @@ HTTP 프로토콜은 특정 플랫폼에 종속되지 않습니다. Expo SDK 57�
 - Better Auth 1.6.23 기반 데이터베이스 세션과 D1 직접 연동
 - Google, Kakao OIDC, Naver OAuth 서버 어댑터
 - Expo SDK 57 SecureStore 쿠키 브리지와 고정 앱 스킴 콜백
-- 멱등 mutation, cursor pull, tombstone을 사용하는 compare-and-set 레코드 동기화
+- 멱등 mutation, collection별 cursor pull, 삭제 원문을 지우는 tombstone을 사용하는 compare-and-set 레코드 동기화
 - D1 마이그레이션, 사용자별 쿼리 제한, 요청 속도 제한, 런타임 검증, 안정적인 오류 형식
 - 로그인 전에도 로컬에서 사용할 수 있고 사용자가 요청할 때만 동기화하는 Expo 예제
 - 사용자 간 접근 차단과 계정 삭제 실패 사례를 포함한 Workers 런타임 통합 테스트
 
-유지관리자 소유의 참조 인스턴스에는 Worker와 D1 마이그레이션이 배포되어 있고, Google OAuth 자격 증명과 Worker 콜백도 설정되어 있습니다. 이 인스턴스는 공개 샌드박스가 아니므로 다른 애플리케이션에서 사용하면 안 됩니다. 별사타 Expo 소비 앱에서는 Android의 실제 Google 로그인, 앱 복귀, 세션 복원, 로그아웃을 검증했습니다. 개미지옥 Godot 소비 앱도 별도 Worker와 D1에서 Android 로그인과 콜백 복귀를 검증했습니다. 계정 삭제 회귀 검사와 iOS 검증은 남아 있으므로 이번 소스 릴리스는 모든 제공자와 플랫폼의 운영 준비 완료를 주장하지 않습니다. Kakao와 Naver는 아직 실제 자격 증명을 설정하지 않았습니다.
+유지관리자 소유의 참조 인스턴스에는 Worker가 배포되어 있고, Google OAuth 자격 증명과 Worker 콜백도 설정되어 있습니다. 새 로컬 마이그레이션 0004와 0005는 명시적인 원격 마이그레이션과 전환 검증 전까지 참조 인스턴스에서 활성화되었다고 보지 않습니다. 이 인스턴스는 공개 샌드박스가 아니므로 다른 애플리케이션에서 사용하면 안 됩니다. 별사타 Expo 소비 앱에서는 기존 Android Google 로그인, 앱 복귀, 세션 복원, 로그아웃을 검증했지만 새 보안 handoff는 다시 검증해야 합니다. 개미지옥 Godot 소비 앱도 별도 Worker와 D1에서 Android 로그인과 콜백 복귀를 검증했습니다. 계정 삭제 회귀 검사와 iOS 검증은 남아 있으므로 이번 소스 릴리스는 모든 제공자와 플랫폼의 운영 준비 완료를 주장하지 않습니다. Kakao와 Naver는 아직 실제 자격 증명을 설정하지 않았습니다.
 
 ## 워크스페이스 구조
 
@@ -66,7 +66,7 @@ pnpm security:audit
 pnpm check
 ```
 
-자세한 내용은 [설정](./docs/CONFIGURATION.md), [API](./docs/API.md), [운영](./docs/OPERATIONS.md), [인증 제공자 설정](./docs/PROVIDERS.md), [보안 모델](./docs/SECURITY.md), [보안 문제 제보](./SECURITY.md), [기술 조사 기준](./docs/RESEARCH.md) 문서를 참고하세요.
+자세한 내용은 [설정](./docs/CONFIGURATION.md), [API](./docs/API.md), [운영](./docs/OPERATIONS.md), [인증 제공자 설정](./docs/PROVIDERS.md), [보안 모델](./docs/SECURITY.md), [동기화 보존](./docs/SYNC_RETENTION.md), [보안 문제 제보](./SECURITY.md), [기술 조사 기준](./docs/RESEARCH.md) 문서를 참고하세요.
 
 유지관리자의 소비 앱 배포는 서로 격리되어 있습니다. 인증 기능만 사용하는 개미지옥 설정은 [ANT HELL 배포 문서](./docs/ANT_HELL_DEPLOYMENT.md)를 참고하세요. 별사타 Worker나 D1 데이터베이스를 공유하지 않습니다.
 

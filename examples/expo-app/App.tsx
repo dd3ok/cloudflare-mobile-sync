@@ -1,5 +1,6 @@
 import { syncOnce } from "@cloudflare-mobile-sync/client-core";
 import { createExpoCallbackUrl } from "@cloudflare-mobile-sync/expo-client";
+import * as Crypto from "expo-crypto";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   ActivityIndicator,
@@ -146,10 +147,17 @@ function AppContent() {
           style: "destructive",
           onPress: () => {
             void run(async () => {
-              await syncClient.deleteAccount();
+              const deletion = await syncClient.deleteAccount(user.id, Crypto.randomUUID());
               await notesStore.detachDeletedAccount(user.id);
               await authClient.signOut();
-              setMessage("Remote account deleted. Local notes were kept.");
+              const unconfirmed = deletion.providerRevocations
+                .filter(({ status }) => status === "unconfirmed")
+                .map(({ providerId }) => providerId);
+              setMessage(
+                unconfirmed.length > 0
+                  ? `Remote account deleted. Disconnect ${unconfirmed.join(", ")} manually; local notes were kept.`
+                  : "Remote account deleted. Local notes were kept.",
+              );
             });
           },
         },

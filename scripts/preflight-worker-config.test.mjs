@@ -13,6 +13,9 @@ const fakeWranglerScript = resolve(
 );
 const primaryConfig = resolve(repositoryRoot, "apps/worker/wrangler.jsonc");
 const antHellConfig = resolve(repositoryRoot, "apps/worker/wrangler.ant-hell.jsonc");
+const byulsataroConfigs = ["development", "preview", "production"].map((variant) =>
+  resolve(repositoryRoot, `apps/worker/wrangler.byulsataro.${variant}.jsonc`),
+);
 
 function runPreflight(environment, config = primaryConfig, requirements) {
   const arguments_ = [preflightScript, "--config", config, "--secrets-source", "environment"];
@@ -75,8 +78,57 @@ test("committed deployments retain their explicit legacy and isolated policies",
   assert.equal(primary.vars.TRUSTED_ORIGINS.includes("com.ponntailstudio.byulsataro"), false);
   assert.equal(antHell.vars.ALLOWED_COLLECTIONS, "");
   assert.equal(antHell.vars.TRUSTED_ORIGINS, "com.dd3ok.anthell://");
+  assert.deepEqual(primary.triggers?.crons, ["* * * * *"]);
+  assert.deepEqual(antHell.triggers?.crons, ["* * * * *"]);
   assert.equal(Object.hasOwn(primary, "secrets"), false);
   assert.equal(Object.hasOwn(antHell, "secrets"), false);
+});
+
+test("Byulsataro environments isolate Worker, D1, rate limits, app audience, and data", async () => {
+  const deployments = await Promise.all(
+    byulsataroConfigs.map(async (path) => JSON.parse(await readFile(path, "utf8"))),
+  );
+  const allRateLimitNamespaces = deployments.flatMap((deployment) =>
+    deployment.ratelimits.map((binding) => binding.namespace_id),
+  );
+
+  assert.equal(new Set(deployments.map((value) => value.name)).size, 3);
+  assert.equal(new Set(deployments.map((value) => value.d1_databases[0].database_name)).size, 3);
+  assert.equal(new Set(deployments.map((value) => value.d1_databases[0].database_id)).size, 3);
+  assert.equal(new Set(allRateLimitNamespaces).size, allRateLimitNamespaces.length);
+  assert.equal(new Set(deployments.map((value) => value.vars.BETTER_AUTH_URL)).size, 3);
+
+  for (const [index, variant] of ["development", "preview", "production"].entries()) {
+    const config = deployments[index];
+    const suffix = variant === "development" ? ".dev" : variant === "preview" ? ".preview" : "";
+    assert.equal(config.vars.TRUSTED_ORIGINS, `com.ponntailstudio.byulsataro${suffix}://`);
+    assert.equal(
+      config.vars.ALLOWED_COLLECTIONS,
+      ["birth-profile-v2", "app-settings-v2", "saved-readings-v2"]
+        .map((collection) => `byeolsataro-${variant}-${collection}`)
+        .join(","),
+    );
+    assert.deepEqual(config.triggers?.crons, ["* * * * *"]);
+  }
+});
+
+test("Byulsataro placeholder environments fail closed before secret inspection", () => {
+  const secretValues = {
+    BETTER_AUTH_SECRET: "pending-primary-secret-value-must-stay-private",
+    BETTER_AUTH_SECRETS: "pending-keyring-value-must-stay-private",
+    GOOGLE_CLIENT_ID: "pending-google-id-value-must-stay-private",
+    GOOGLE_CLIENT_SECRET: "pending-google-secret-value-must-stay-private",
+  };
+
+  for (const config of byulsataroConfigs) {
+    const result = runPreflight(secretValues, config);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /unresolved external setup/u);
+    assert.match(result.stderr, /googleOAuthClient/u);
+    for (const value of Object.values(secretValues)) {
+      assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, new RegExp(value, "u"));
+    }
+  }
 });
 
 test("preflight reports only the missing secret names", () => {
@@ -194,6 +246,36 @@ test("preflight rejects a Wrangler config that violates the installed schema", a
     assert.equal(
       result.stderr,
       "Preflight failed: Wrangler config schema validation failed at /: must NOT have additional properties\n",
+    );
+  } finally {
+    await rm(fixturePath, { force: true });
+  }
+});
+
+test("preflight rejects a deployment without scheduled security-data cleanup", async () => {
+  const fixturePath = resolve(
+    repositoryRoot,
+    `apps/worker/.preflight-missing-maintenance-${process.pid}.jsonc`,
+  );
+  const config = JSON.parse(await readFile(primaryConfig, "utf8"));
+  delete config.triggers;
+  await writeFile(fixturePath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+
+  try {
+    const result = runPreflight(
+      {
+        BETTER_AUTH_SECRET: "available-primary-secret",
+        BETTER_AUTH_SECRETS: "available-primary-keyring",
+        GOOGLE_CLIENT_ID: "available-google-id",
+        GOOGLE_CLIENT_SECRET: "available-google-secret",
+      },
+      fixturePath,
+    );
+
+    assert.equal(result.status, 1);
+    assert.equal(
+      result.stderr,
+      "Preflight failed: Wrangler config must schedule security-data maintenance once per minute\n",
     );
   } finally {
     await rm(fixturePath, { force: true });

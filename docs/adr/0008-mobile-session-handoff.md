@@ -1,6 +1,6 @@
 # ADR 0008: Keep the maintained Expo session handoff with reverse-domain schemes
 
-- Status: accepted with residual risk
+- Status: superseded by ADR 0009
 - Date: 2026-07-23
 
 ## Context
@@ -34,3 +34,6 @@ rewriter in this starter.
 - A future migration requires maintained library support or a separately
   reviewed authentication design plus associated-domain files and native build
   identifiers; it is not a configuration-only change.
+
+ADR 0009 records that later review and replaces this decision with an
+audience- and S256-verifier-bound one-time HTTPS exchange.

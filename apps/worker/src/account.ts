@@ -1,4 +1,8 @@
-import type { AccountResponse } from "@cloudflare-mobile-sync/api-contract";
+import {
+  type AccountDeletionOutcome,
+  type AccountResponse,
+  accountDeletionOutcomeSchema,
+} from "@cloudflare-mobile-sync/api-contract";
 import type { Auth } from "./auth";
 import type { Env } from "./env";
 import { PublicError } from "./errors";
@@ -18,8 +22,14 @@ interface AccountRow {
   accountId: string;
 }
 
-export interface AccountDeletionOutcome {
+export interface ProviderDeletionOutcome {
+  providerIds: string[];
   providerRevocationFailures: string[];
+}
+
+export interface AccountDeletionReceiptInput {
+  operationId: string;
+  expectedSubjectId: string;
 }
 
 type ProviderAccessRevoker = (account: AccountRow) => Promise<void>;
@@ -122,7 +132,8 @@ export async function deleteAccountData(
   db: D1Database,
   userId: string,
   revokeAccess: ProviderAccessRevoker,
-): Promise<AccountDeletionOutcome> {
+  receipt?: AccountDeletionReceiptInput,
+): Promise<ProviderDeletionOutcome> {
   const accounts = await db
     .prepare(`SELECT id, providerId, accountId FROM account WHERE userId = ? ORDER BY providerId`)
     .bind(userId)
@@ -137,10 +148,26 @@ export async function deleteAccountData(
     }
   }
 
-  const deleted = await db.prepare(`DELETE FROM user WHERE id = ?`).bind(userId).run();
-  if (deleted.meta.changes < 1) throw new Error("Account deletion did not delete a user");
+  const providerIds = [...new Set(accounts.results.map((account) => account.providerId))].sort();
+  if (receipt) {
+    const completedAt = new Date().toISOString();
+    const outcome = deletionOutcome(receipt.operationId, completedAt, providerIds, [
+      ...providerRevocationFailures,
+    ]);
+    const receiptInsert = await deletionReceiptInsert(db, receipt, outcome);
+    const [stored, deleted] = await db.batch([
+      receiptInsert,
+      db.prepare(`DELETE FROM user WHERE id = ?`).bind(userId),
+    ]);
+    if (stored?.meta.changes !== 1 || deleted?.meta.changes !== 1) {
+      throw new Error("Account deletion receipt was not committed with user deletion");
+    }
+  } else {
+    const deleted = await db.prepare(`DELETE FROM user WHERE id = ?`).bind(userId).run();
+    if (deleted.meta.changes < 1) throw new Error("Account deletion did not delete a user");
+  }
 
-  return { providerRevocationFailures: [...providerRevocationFailures].sort() };
+  return { providerIds, providerRevocationFailures: [...providerRevocationFailures].sort() };
 }
 
 export async function revokeProvidersAndDelete(
@@ -148,8 +175,108 @@ export async function revokeProvidersAndDelete(
   auth: Auth,
   user: AuthenticatedUser,
   requestHeaders: Headers,
-): Promise<AccountDeletionOutcome> {
-  return deleteAccountData(env.DB, user.id, (account) =>
-    revokeProvider(env, auth, requestHeaders, account),
+  receipt?: AccountDeletionReceiptInput,
+): Promise<ProviderDeletionOutcome> {
+  return deleteAccountData(
+    env.DB,
+    user.id,
+    (account) => revokeProvider(env, auth, requestHeaders, account),
+    receipt,
   );
+}
+
+const DELETION_RECEIPT_TTL_MILLISECONDS = 7 * 24 * 60 * 60 * 1_000;
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function deletionOutcome(
+  operationId: string,
+  completedAt: string,
+  providerIds: readonly string[],
+  failures: readonly string[],
+): AccountDeletionOutcome {
+  const unconfirmed = new Set(failures);
+  return {
+    operationId,
+    serverDataDeleted: true,
+    providerRevocations: providerIds.map((providerId) => ({
+      providerId,
+      status: unconfirmed.has(providerId) ? "unconfirmed" : "confirmed",
+    })),
+    completedAt,
+  };
+}
+
+async function deletionReceiptInsert(
+  db: D1Database,
+  receipt: AccountDeletionReceiptInput,
+  outcome: AccountDeletionOutcome,
+): Promise<D1PreparedStatement> {
+  return db
+    .prepare(
+      `INSERT INTO account_deletion_receipt
+         (operation_hash, subject_hash, result_json, completed_at, expires_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      await sha256Hex(receipt.operationId),
+      await sha256Hex(receipt.expectedSubjectId),
+      JSON.stringify({
+        serverDataDeleted: outcome.serverDataDeleted,
+        providerRevocations: outcome.providerRevocations,
+        completedAt: outcome.completedAt,
+      }),
+      outcome.completedAt,
+      Date.parse(outcome.completedAt) + DELETION_RECEIPT_TTL_MILLISECONDS,
+    );
+}
+
+export async function storeAccountDeletionReceipt(
+  db: D1Database,
+  receipt: AccountDeletionReceiptInput,
+  providerOutcome: ProviderDeletionOutcome,
+): Promise<AccountDeletionOutcome> {
+  const completedAt = new Date().toISOString();
+  const outcome = deletionOutcome(
+    receipt.operationId,
+    completedAt,
+    providerOutcome.providerIds,
+    providerOutcome.providerRevocationFailures,
+  );
+  const stored = await (await deletionReceiptInsert(db, receipt, outcome)).run();
+  if (stored.meta.changes !== 1) throw new Error("Account deletion receipt was not stored");
+  return outcome;
+}
+
+export async function readAccountDeletionReceipt(
+  db: D1Database,
+  receipt: AccountDeletionReceiptInput,
+): Promise<AccountDeletionOutcome | null> {
+  const now = Date.now();
+  await pruneExpiredAccountDeletionReceipts(db, now);
+  const row = await db
+    .prepare(
+      `SELECT result_json FROM account_deletion_receipt
+       WHERE operation_hash = ? AND subject_hash = ? AND expires_at > ?`,
+    )
+    .bind(await sha256Hex(receipt.operationId), await sha256Hex(receipt.expectedSubjectId), now)
+    .first<{ result_json: string }>();
+  if (!row) return null;
+  const stored = JSON.parse(row.result_json) as Partial<AccountDeletionOutcome>;
+  return accountDeletionOutcomeSchema.parse({
+    operationId: receipt.operationId,
+    serverDataDeleted: stored.serverDataDeleted,
+    providerRevocations: stored.providerRevocations,
+    completedAt: stored.completedAt,
+  });
+}
+
+export async function pruneExpiredAccountDeletionReceipts(
+  db: D1Database,
+  now: number,
+): Promise<void> {
+  await db.prepare(`DELETE FROM account_deletion_receipt WHERE expires_at <= ?`).bind(now).run();
 }

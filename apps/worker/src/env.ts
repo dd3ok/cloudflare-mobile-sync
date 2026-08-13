@@ -1,6 +1,7 @@
 export interface Env {
   DB: D1Database;
   ALLOWED_COLLECTIONS: string;
+  RETAINED_TOMBSTONE_TARGETS?: string;
   BETTER_AUTH_URL: string;
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_SECRETS?: string;

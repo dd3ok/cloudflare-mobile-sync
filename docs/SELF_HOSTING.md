@@ -205,11 +205,19 @@ scheme to `createExpoAuthClient`. Expo Go is not a production OAuth verification
 target. Keep login and remote sync optional so the host app continues working
 offline.
 
-The maintained Better Auth Expo cookie bridge currently returns the session via
-a custom-scheme callback. Switching only the callback to an HTTPS universal/app
-link does not work because Better Auth 1.6.23 intentionally does not attach the
-cookie to HTTP(S) redirects. This starter does not invent a session-token
-exchange protocol; see ADR 0008 before changing this flow.
+The Expo adapter prepares a one-time handoff and exchanges the result over
+HTTPS. The private-scheme callback contains only a 60-second opaque code; the
+Worker strips and rejects legacy cookie-query callbacks. Keep the Worker,
+`api-contract`, `client-core`, `expo-client`, migrations 0004, 0005, and 0006, and
+consumer archives on the same reviewed source revision. See ADR 0009 and
+ADR 0010.
+
+The three `wrangler.byulsataro.*.jsonc` files demonstrate strict environment
+isolation. They intentionally contain pending sentinels, and their preflight
+commands fail closed until the corresponding entry in
+`deployment-readiness.json` has no unresolved external setup. Replace Worker,
+D1, rate-limit, HTTPS origin, and Google OAuth resources independently per
+environment; never mark an entry ready merely to bypass preflight.
 
 ## 8. Production verification
 

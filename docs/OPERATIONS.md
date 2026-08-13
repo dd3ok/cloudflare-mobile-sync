@@ -4,10 +4,12 @@ Reviewed: 2026-08-13
 
 This is a CLI-first self-hosted starter. The owner Worker and production D1
 database were deployed on 2026-07-21 at
-`https://cloudflare-mobile-sync.ponntailstudio.workers.dev`. All committed
-migrations are applied. Google credentials and its Worker callback are
-configured; the real mobile login flow still requires an Expo development-build
-verification.
+`https://cloudflare-mobile-sync.ponntailstudio.workers.dev`. The prior remote
+migrations are applied, but local migrations 0004, 0005, and 0006 are not claimed
+active until a read-only remote migration check, explicit migration, and cutover
+verification complete. Google credentials and its Worker callback are
+configured; the replacement secure mobile flow still requires an Expo
+development-build verification.
 
 This maintainer deployment is not a public sandbox. A third-party adopter must
 follow [the self-hosting guide](./SELF_HOSTING.md) and replace every
@@ -162,16 +164,30 @@ these records.
 
 - Every schema change is a new numbered SQL migration. Never edit a migration already applied remotely.
 - Test migrations against disposable local state before remote application.
+- Migration `0005_sync_deletion_compaction.sql` rebuilds mutation receipts,
+  compacts payload-bearing history for already-deleted records, and adds the
+  exact-collection pull index. Follow the preflight and count-only verification
+  in [sync retention operations](./SYNC_RETENTION.md); do not inspect raw
+  payloads as an operational check.
 - Before applying migration `0003_account_identity.sql` to an existing database,
   run the following read-only query. Any result needs an owner-reviewed account
   recovery decision; do not delete a duplicate automatically:
-
   ```sql
   SELECT providerId, accountId, COUNT(*) AS copies
   FROM account
   GROUP BY providerId, accountId
   HAVING COUNT(*) > 1;
   ```
+
+- Migration `0006_account_deletion_receipts.sql` adds seven-day, hashed-capability
+  receipts. Apply it before deploying clients that send deletion operation IDs.
+- Every committed deployment config runs the scheduled security-data cleanup
+  once per minute. Verify its Cron Trigger after deployment; it removes expired
+  mobile handoffs and account-deletion receipts without relying on user traffic.
+- For every retained-tombstone policy, verify the exact collection, record,
+  subject namespace, payload schema, and version. Exercise accepted, conflict,
+  replay, filtered pull, and old-payload absence against a disposable D1 before
+  enabling it.
 
 - Export a backup before a consequential migration with Wrangler's remote D1 export command and store it outside the repository.
 - D1 migrations are forward-only. Rolling back Worker code is safe only when the older code is compatible with the migrated schema; otherwise write a forward repair migration and test it locally.
@@ -187,9 +203,14 @@ Rotate provider client secrets in each provider console, update the correspondin
 
 ## Backup, restore, and deletion checks
 
+- Follow [sync retention operations](./SYNC_RETENTION.md) for record deletion,
+  Time Travel, export expiry, and restore reconciliation.
 - Treat D1 exports as sensitive production data and encrypt/restrict them at rest.
 - Test restore procedures into a separate disposable D1 database, never over the live binding first.
 - After remote account deletion, confirm the user, session, account, mutation, record, and change rows are absent and confirm provider-console unlink state.
+- Also confirm the deletion outcome is recoverable with the original operation
+  capability, rejects a different subject, expires on schedule, and gives the
+  consumer a manual-unlink path for every `unconfirmed` provider.
 - Local app data is host-owned and remains by default. If a host app offers local erase, it must be a separate explicit destructive action.
 - For an email request from a former internal-test user who cannot reach the
   self-service flow, follow the
