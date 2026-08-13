@@ -1,5 +1,5 @@
 {
-  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "cloudflare-mobile-sync",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-20",
@@ -40,9 +40,6 @@
       }
     }
   ],
-  "secrets": {
-    "required": ["BETTER_AUTH_SECRET", "BETTER_AUTH_SECRETS"]
-  },
   "vars": {
     "ALLOWED_COLLECTIONS": "saved-readings-v1,app-settings-v1",
     "BETTER_AUTH_URL": "https://cloudflare-mobile-sync.ponntailstudio.workers.dev",

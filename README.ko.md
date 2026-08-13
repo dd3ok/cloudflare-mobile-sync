@@ -60,6 +60,7 @@ pnpm typecheck
 pnpm lint
 pnpm test
 pnpm build
+pnpm test:preflight
 pnpm security:secrets
 pnpm security:audit
 pnpm check

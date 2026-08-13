@@ -20,7 +20,7 @@
     "@better-auth/expo": "1.6.23",
     "@cloudflare-mobile-sync/api-contract": "workspace:*",
     "better-auth": "1.6.23",
-    "hono": "4.12.31",
+    "hono": "4.12.34",
     "zod": "4.4.3"
   },
   "devDependencies": {

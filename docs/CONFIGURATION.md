@@ -1,6 +1,6 @@
 # Configuration contract
 
-Reviewed: 2026-07-23
+Reviewed: 2026-08-13
 
 Configuration is split by trust boundary. The portable packages accept options
 and never read environment variables themselves.
@@ -34,7 +34,7 @@ ignored `apps/worker/.env.production` file for the first deployment. Wrangler
 uploads those values as encrypted Worker secrets when the file is passed with
 `--secrets-file`; the real file must never be committed.
 
-The maintainer reference instance uses:
+The maintainer reference instance is a legacy compatibility deployment and uses:
 
 ```text
 Worker origin: https://cloudflare-mobile-sync.ponntailstudio.workers.dev
@@ -42,19 +42,61 @@ D1 database: cloudflare-mobile-sync-prod
 D1 binding: DB
 ```
 
-Its production trusted-origin allowlist contains only the three Byulsata build
+Its committed trusted-origin allowlist contains only the three legacy Byulsata
 schemes (`com.byeolsata.app.dev://`, `com.byeolsata.app.preview://`, and
-`com.byeolsata.app://`). All mobile schemes must use reverse-domain notation.
-Its application-data allowlist contains only `saved-readings-v1` and
-`app-settings-v1`, the two collections explicitly synchronized by Byulsata.
+`com.byeolsata.app://`). Its application-data allowlist contains only the legacy
+`saved-readings-v1` and `app-settings-v1` collections. These values are a
+fail-closed compatibility boundary, not the contract of the current official
+app. The current `com.ponntailstudio.byulsataro*` builds are local-only and their
+variant-namespaced v2 collections are intentionally rejected.
+
+Do not replace only these strings to enable the current app. A cloud cutover must
+first approve the mobile OAuth handoff, retention/deletion semantics and staging
+E2E, then update the app identities, all three v2 collection families, OAuth
+console callbacks and deployed Worker variables as one reviewed change. All
+mobile schemes must use reverse-domain notation.
 The generic local example uses
 `com.example.cloudflaremobilesync://` and is not authorized against the
 maintainer Worker.
 
 The D1 ID and public Worker origin are deployment configuration, not credentials.
 `BETTER_AUTH_SECRET`, `BETTER_AUTH_SECRETS`, and provider credentials remain
-secret. Wrangler validates the two required Better Auth secret names before a
-deployment can succeed.
+secret. `apps/worker/required-secrets.json` is the repository's single source of
+truth for the secret binding names each committed deployment requires. Do not
+duplicate that list in a Wrangler `secrets` block: a stale schema path or a
+Wrangler version that does not enforce the field can otherwise create false
+assurance.
+
+The committed primary Worker and ANT HELL Worker each require four names:
+`BETTER_AUTH_SECRET`, `BETTER_AUTH_SECRETS`, `GOOGLE_CLIENT_ID`, and
+`GOOGLE_CLIENT_SECRET`. The primary entry includes Google because that reference
+deployment exposes the verified Google vertical slice; a missing provider secret
+must fail before a deployment rather than silently remove its login method.
+Kakao and Naver remain optional and are not listed until their corresponding
+deployment intentionally enables them.
+
+`pnpm test:preflight` validates both committed Wrangler files against the JSON
+Schema shipped with the pinned local Wrangler, checks the secret-name manifest,
+and verifies fail-closed origin and collection policies. It uses fixtures and
+does not require Cloudflare credentials. Immediately before an existing remote
+deployment, use the read-only name check for the selected Worker:
+
+```bash
+pnpm preflight:worker
+pnpm preflight:ant-hell
+```
+
+These commands call `wrangler secret list --format json` and compare names only;
+secret values are neither available from Wrangler nor printed by the preflight.
+For a first deployment whose remote secrets do not exist yet, run the CLI with
+`--secrets-source environment` in a process that already has the required names
+set. The environment preflight also rejects the committed example placeholder
+values without printing them. It does not replace provider-side credential
+validation; then upload the same reviewed values atomically with `--secrets-file`:
+
+```bash
+node --env-file=apps/worker/.env.production scripts/preflight-worker-config.mjs --config apps/worker/wrangler.jsonc --secrets-source environment
+```
 
 These reference values are not public defaults. Every adopter must replace the
 Worker name, D1 name and ID, public origin, trusted app origins, allowed

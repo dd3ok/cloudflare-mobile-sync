@@ -1,6 +1,6 @@
 # ANT HELL deployment
 
-Reviewed: 2026-07-23
+Reviewed: 2026-08-13
 
 ANT HELL reuses this repository's platform-neutral Worker while keeping its
 users, sessions, rate limits, and deletion scope isolated from every other host
@@ -45,10 +45,10 @@ pnpm --filter @cloudflare-mobile-sync/worker migrate:ant-hell:remote
 pnpm --filter @cloudflare-mobile-sync/worker deploy:ant-hell
 ```
 
-The ANT HELL Worker requires independent `BETTER_AUTH_SECRET` and
-`BETTER_AUTH_SECRETS` values. Use an owner-controlled Web OAuth client whose
-consent-screen branding is suitable for ANT HELL and register the exact callback
-above in Google Cloud.
+The ANT HELL Worker requires independent `BETTER_AUTH_SECRET`,
+`BETTER_AUTH_SECRETS`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET` values.
+Use an owner-controlled Web OAuth client whose consent-screen branding is
+suitable for ANT HELL and register the exact callback above in Google Cloud.
 
 After deployment, verify `/health`, the signed-out `/v1/auth/get-session`
 response, the unauthenticated `401` response from `/v1/account`, and the complete

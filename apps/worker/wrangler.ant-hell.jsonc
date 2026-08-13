@@ -1,5 +1,5 @@
 {
-  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "ant-hell-sync",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-20",
@@ -40,14 +40,6 @@
       }
     }
   ],
-  "secrets": {
-    "required": [
-      "BETTER_AUTH_SECRET",
-      "BETTER_AUTH_SECRETS",
-      "GOOGLE_CLIENT_ID",
-      "GOOGLE_CLIENT_SECRET"
-    ]
-  },
   "vars": {
     "ALLOWED_COLLECTIONS": "",
     "BETTER_AUTH_URL": "https://ant-hell-sync.ponntailstudio.workers.dev",

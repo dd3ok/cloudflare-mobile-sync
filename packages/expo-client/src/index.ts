@@ -7,7 +7,7 @@ import {
   type SyncClient,
 } from "@cloudflare-mobile-sync/client-core";
 import { genericOAuthClient } from "better-auth/client/plugins";
-import { createAuthClient } from "better-auth/react";
+import { createAuthClient, type ReactAuthClient } from "better-auth/react";
 import * as Linking from "expo-linking";
 import * as SecureStore from "expo-secure-store";
 import { fetchWithTimeout } from "./fetch-with-timeout";
@@ -20,19 +20,28 @@ export interface ExpoAuthOptions {
   storagePrefix: string;
 }
 
-export function createExpoAuthClient(options: ExpoAuthOptions) {
+type ExpoAuthClientConfiguration = {
+  baseURL: string;
+  basePath: string;
+  plugins: [ReturnType<typeof expoClient>, ReturnType<typeof genericOAuthClient>];
+};
+
+export function createExpoAuthClient(
+  options: ExpoAuthOptions,
+): ReactAuthClient<ExpoAuthClientConfiguration> {
   validateMobileScheme(options.scheme);
-  return createAuthClient({
+  const plugins: ExpoAuthClientConfiguration["plugins"] = [
+    expoClient({
+      scheme: options.scheme,
+      storage: SecureStore,
+      storagePrefix: options.storagePrefix,
+    }),
+    genericOAuthClient(),
+  ];
+  return createAuthClient<ExpoAuthClientConfiguration>({
     baseURL: options.baseUrl,
     basePath: options.authPath ?? "/v1/auth",
-    plugins: [
-      expoClient({
-        scheme: options.scheme,
-        storage: SecureStore,
-        storagePrefix: options.storagePrefix,
-      }),
-      genericOAuthClient(),
-    ],
+    plugins,
   });
 }
 

@@ -1,7 +1,11 @@
 import { env } from "cloudflare:workers";
 import { LIMITS, type PullResponse, type PushResponse } from "@cloudflare-mobile-sync/api-contract";
 import { describe, expect, it, vi } from "vitest";
-import { type AuthenticatedUser, deleteAccountData } from "../src/account";
+import {
+  type AuthenticatedUser,
+  deleteAccountData,
+  isGoogleRevocationConfirmed,
+} from "../src/account";
 import { createApp } from "../src/app";
 import {
   createAuth,
@@ -74,6 +78,14 @@ async function push(userId: string, mutations: unknown[]): Promise<Response> {
 }
 
 describe("Worker API", () => {
+  it("treats only a successful Google revoke response as confirmed", () => {
+    expect(isGoogleRevocationConfirmed(new Response(null, { status: 200 }))).toBe(true);
+    expect(isGoogleRevocationConfirmed(new Response(null, { status: 201 }))).toBe(false);
+    expect(isGoogleRevocationConfirmed(new Response(null, { status: 204 }))).toBe(false);
+    expect(isGoogleRevocationConfirmed(new Response(null, { status: 400 }))).toBe(false);
+    expect(isGoogleRevocationConfirmed(new Response(null, { status: 503 }))).toBe(false);
+  });
+
   it("validates the optional Better Auth rotation keyring", () => {
     expect(
       parseVersionedSecrets(
@@ -162,7 +174,7 @@ describe("Worker API", () => {
     });
   });
 
-  it("allows only the production Byulsata sync collections", async () => {
+  it("keeps the legacy collection boundary closed to the current Byulsata app", async () => {
     await seedUser("collection-policy-user");
 
     for (const collection of ["saved-readings-v1", "app-settings-v1"]) {
@@ -190,6 +202,18 @@ describe("Worker API", () => {
       },
     ]);
     expect(notes.status).toBe(403);
+
+    const currentAppCollection = await push("collection-policy-user", [
+      {
+        mutationId: "collection-policy-current-app",
+        collection: "byeolsataro-production-saved-readings-v2",
+        recordId: "record-1",
+        operation: "put",
+        baseRevision: 0,
+        payload: { value: "current-app" },
+      },
+    ]);
+    expect(currentAppCollection.status).toBe(403);
   });
 
   it("logs an opaque unexpected error without leaking its message", async () => {

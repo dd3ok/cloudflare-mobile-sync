@@ -2,7 +2,7 @@
 
 Status: accepted
 
-Reviewed: 2026-07-21
+Reviewed: 2026-08-13
 
 ## Context
 
@@ -18,11 +18,27 @@ required for the first end-to-end verification.
   `https://cloudflare-mobile-sync.ponntailstudio.workers.dev`.
 - Create the isolated D1 database `cloudflare-mobile-sync-prod` in APAC and keep
   the Worker binding name `DB`.
-- Keep one top-level Wrangler deployment configuration. Local development
-  overrides runtime values through the ignored `.dev.vars` file.
+- Keep one committed Wrangler configuration per independently deployed
+  maintainer Worker. The primary Byulsata reference and ANT HELL use separate
+  Workers, D1 databases, rate-limit namespaces, trusted origins, collections,
+  and secrets. Local development overrides runtime values through the ignored
+  `.dev.vars` file.
+- Treat the primary configuration's original `com.byeolsata.app*` origins and
+  v1 collections as a legacy compatibility boundary. The current official
+  `com.ponntailstudio.byulsataro*` app is local-only and its namespaced v2
+  collections must remain rejected until a separately reviewed cloud cutover
+  updates every identity, collection, OAuth callback and deployed variable
+  together.
 - Disable preview URLs because this project has no preview deployment workflow.
-- Require the two Better Auth secret bindings and upload initial secrets together
-  with the first Worker deployment.
+- Keep required secret *names* in `apps/worker/required-secrets.json`, keyed by
+  Wrangler filename, instead of a non-schema `secrets` block in Wrangler. The
+  current primary and ANT HELL deployments require the two Better Auth bindings
+  and the Google client ID and secret. Secret values remain outside Git.
+- Validate each committed Wrangler file against the schema shipped by the pinned
+  Wrangler version, validate the manifest and fail-closed origin/collection
+  policies locally, and compare remote secret names before a remote mutation.
+  The preflight must never read or print secret values.
+- Upload initial secret values together with the first Worker deployment.
 - Do not apply remote migrations or deploy Worker code until the owner explicitly
   starts the deployment step.
 
@@ -43,6 +59,9 @@ The D1 database ID is account-specific but is not a credential. Secrets remain
 outside Git in an ignored file and are encrypted by Cloudflare when uploaded.
 The resulting maintainer deployment is not a public sandbox; public source
 distribution is governed by ADR 0005 and requires per-adopter deployments.
+Adding or removing a provider now requires a coherent provider, manifest, test,
+and documentation change; a missing required name fails preflight before remote
+state is mutated.
 
 ## Sources
 

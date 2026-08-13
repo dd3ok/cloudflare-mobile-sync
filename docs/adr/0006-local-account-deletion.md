@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-07-23
+- Reviewed: 2026-08-13
 - Supersedes: the provider-outage behavior in ADR 0003
 
 ## Decision
@@ -13,6 +14,11 @@ local Better Auth user and all D1 data connected through foreign-key cascades.
 A provider timeout or error is recorded without tokens, account identifiers, or
 user data, but it does not block local deletion. A missing local user remains an
 error so an ambiguous deletion result is never reported as success.
+
+Provider success follows each provider's documented terminal response rather
+than the broad HTTP `ok` range. In particular, Google revocation is confirmed
+only by HTTP `200`; HTTP `400` or any other status remains an unconfirmed
+provider failure while D1 deletion still proceeds.
 
 ## Rationale
 
