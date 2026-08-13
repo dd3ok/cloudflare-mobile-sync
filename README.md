@@ -10,14 +10,16 @@ The HTTP protocol is platform-neutral. Expo SDK 57 is the first adapter, while p
 
 - Better Auth 1.6.23 with database sessions and direct D1 support
 - Google, Kakao OIDC, and Naver OAuth server adapters
-- Expo SDK 57 SecureStore cookie bridge with reverse-domain app-scheme defaults
-- Compare-and-set record sync with idempotent mutations, cursor pulls, and tombstones
+- Expo SDK 57 SecureStore plus a one-time S256-bound HTTPS mobile session exchange
+- Compare-and-set record sync with idempotent mutations, exact-collection cursor pulls, and privacy-compacted tombstones
 - D1 migrations, user-scoped queries, rate limits, runtime validation, and stable errors
 - Local-first Expo example that works before login and syncs only on request
 - Workers-runtime integration tests including cross-user and deletion failures
 
-A maintainer-owned reference instance is deployed, its D1 migrations are
-applied, and Google OAuth credentials and the Worker callback are configured.
+A maintainer-owned reference instance is deployed and Google OAuth credentials
+and the Worker callback are configured. New local migrations 0004, 0005, and 0006 are
+pending an explicit remote migration and cutover; this source does not claim
+those paths are active on the reference instance.
 It is not a public sandbox: do not point another application at it. Real Google
 sign-in, redirect return, session restoration, and logout have been verified on
 Android through the Byulsata Expo consumer. The ANT HELL Godot consumer has
@@ -89,8 +91,8 @@ pnpm check
 
 See [configuration](./docs/CONFIGURATION.md), [API](./docs/API.md),
 [operations](./docs/OPERATIONS.md), [provider setup](./docs/PROVIDERS.md),
-[security model](./docs/SECURITY.md), [security reporting](./SECURITY.md), and
-[research baseline](./docs/RESEARCH.md).
+[security model](./docs/SECURITY.md), [sync retention](./docs/SYNC_RETENTION.md),
+[security reporting](./SECURITY.md), and [research baseline](./docs/RESEARCH.md).
 
 The maintainer's isolated consumer deployments are documented separately. See
 [ANT HELL deployment](./docs/ANT_HELL_DEPLOYMENT.md) for its authentication-only

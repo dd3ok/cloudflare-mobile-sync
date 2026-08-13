@@ -135,17 +135,29 @@ export async function pullChanges(
   userId: string,
   cursor: number,
   limit: number,
+  collection?: string,
 ): Promise<PullResponse> {
-  const result = await db
-    .prepare(
-      `SELECT collection, record_id, revision, cursor, deleted, payload, updated_at
-      FROM sync_changes
-      WHERE user_id = ? AND cursor > ?
-      ORDER BY cursor ASC
-      LIMIT ?`,
-    )
-    .bind(userId, cursor, limit + 1)
-    .all<ChangeRow>();
+  const statement =
+    collection === undefined
+      ? db
+          .prepare(
+            `SELECT collection, record_id, revision, cursor, deleted, payload, updated_at
+            FROM sync_changes
+            WHERE user_id = ? AND cursor > ?
+            ORDER BY cursor ASC
+            LIMIT ?`,
+          )
+          .bind(userId, cursor, limit + 1)
+      : db
+          .prepare(
+            `SELECT collection, record_id, revision, cursor, deleted, payload, updated_at
+            FROM sync_changes
+            WHERE user_id = ? AND collection = ? AND cursor > ?
+            ORDER BY cursor ASC
+            LIMIT ?`,
+          )
+          .bind(userId, collection, cursor, limit + 1);
+  const result = await statement.all<ChangeRow>();
 
   const hasMore = result.results.length > limit;
   const changes = result.results.slice(0, limit).map(recordFromRow);

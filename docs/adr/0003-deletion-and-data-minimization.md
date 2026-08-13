@@ -3,7 +3,8 @@
 - Status: accepted
 - Date: 2026-07-20
 
-The provider-outage behavior in this ADR is superseded by ADR 0006.
+The provider-outage behavior in this ADR is superseded by ADR 0006. Individual
+sync-record deletion retention is superseded by ADR 0010.
 
 ## Decision
 

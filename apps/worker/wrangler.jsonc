@@ -6,6 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": false,
+  "triggers": { "crons": ["* * * * *"] },
   "observability": {
     "enabled": true,
     "logs": {

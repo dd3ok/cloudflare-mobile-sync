@@ -1,24 +1,50 @@
 import {
   API_VERSION,
+  accountDeletionOperationIdSchema,
+  accountDeletionStatusRequestSchema,
   LIMITS,
+  mobileAuthHandoffCancelRequestSchema,
+  mobileAuthHandoffExchangeRequestSchema,
+  mobileAuthHandoffPrepareRequestSchema,
   pullQuerySchema,
   pushRequestSchema,
+  retainedTombstoneRequestSchema,
 } from "@cloudflare-mobile-sync/api-contract";
 import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { type AuthenticatedUser, getAccount, revokeProvidersAndDelete } from "./account";
+import {
+  type AuthenticatedUser,
+  getAccount,
+  type ProviderDeletionOutcome,
+  readAccountDeletionReceipt,
+  revokeProvidersAndDelete,
+  storeAccountDeletionReceipt,
+} from "./account";
 import { createAuth } from "./auth";
 import { commaSeparated, type Env } from "./env";
 import { errorEnvelope, PublicError } from "./errors";
+import {
+  cancelMobileAuthHandoff,
+  exchangeMobileAuthHandoff,
+  prepareMobileAuthHandoff,
+  secureMobileAuthRedirect,
+} from "./mobile-auth-handoff";
+import { retainTombstone } from "./retained-tombstone";
 import { pullChanges, pushMutations } from "./sync-repository";
 
 type Variables = { requestId: string; user: AuthenticatedUser };
 type Authenticate = (request: Request, env: Env) => Promise<AuthenticatedUser | null>;
-type DeleteAccount = (request: Request, env: Env, user: AuthenticatedUser) => Promise<void>;
+type DeleteAccount = (
+  request: Request,
+  env: Env,
+  user: AuthenticatedUser,
+) => Promise<ProviderDeletionOutcome | undefined>;
+type HandleAuth = (request: Request, env: Env) => Promise<Response>;
 
 export interface AppDependencies {
   authenticate?: Authenticate;
   deleteAccount?: DeleteAccount;
+  handleAuth?: HandleAuth;
 }
 
 async function defaultAuthenticate(request: Request, env: Env): Promise<AuthenticatedUser | null> {
@@ -119,7 +145,81 @@ export function createApp(dependencies: AppDependencies = {}) {
     );
     await next();
   });
-  app.all("/v1/auth/*", (context) => createAuth(context.env).handler(context.req.raw));
+  app.all("/v1/auth/*", async (context) => {
+    const response = dependencies.handleAuth
+      ? await dependencies.handleAuth(context.req.raw, context.env)
+      : await createAuth(context.env).handler(context.req.raw);
+    return secureMobileAuthRedirect(context.env, response);
+  });
+
+  app.post("/v1/mobile-auth/handoffs", async (context) => {
+    const clientIp = context.req.header("cf-connecting-ip")?.trim() || "unknown";
+    await consumeRateLimit(
+      context.env.AUTH_RATE_LIMITER,
+      clientIp,
+      1,
+      "Too many authentication requests",
+    );
+    const parsed = mobileAuthHandoffPrepareRequestSchema.safeParse(
+      await parseBody(context.req.raw),
+    );
+    if (!parsed.success) {
+      throw new PublicError(400, "VALIDATION_ERROR", "Invalid mobile auth handoff request");
+    }
+    return context.json(await prepareMobileAuthHandoff(context.env, parsed.data), 201);
+  });
+
+  app.post("/v1/mobile-auth/handoffs/exchange", async (context) => {
+    const clientIp = context.req.header("cf-connecting-ip")?.trim() || "unknown";
+    await consumeRateLimit(
+      context.env.AUTH_RATE_LIMITER,
+      clientIp,
+      1,
+      "Too many authentication requests",
+    );
+    const parsed = mobileAuthHandoffExchangeRequestSchema.safeParse(
+      await parseBody(context.req.raw),
+    );
+    if (!parsed.success) {
+      throw new PublicError(400, "VALIDATION_ERROR", "Invalid mobile auth handoff exchange");
+    }
+    return context.json(await exchangeMobileAuthHandoff(context.env, parsed.data));
+  });
+
+  app.post("/v1/mobile-auth/handoffs/cancel", async (context) => {
+    const clientIp = context.req.header("cf-connecting-ip")?.trim() || "unknown";
+    await consumeRateLimit(
+      context.env.AUTH_RATE_LIMITER,
+      clientIp,
+      1,
+      "Too many authentication requests",
+    );
+    const parsed = mobileAuthHandoffCancelRequestSchema.safeParse(await parseBody(context.req.raw));
+    if (!parsed.success) {
+      throw new PublicError(400, "VALIDATION_ERROR", "Invalid mobile auth handoff cancellation");
+    }
+    await cancelMobileAuthHandoff(context.env, parsed.data);
+    return context.body(null, 204);
+  });
+
+  app.post("/v1/account-deletions/status", async (context) => {
+    const clientIp = context.req.header("cf-connecting-ip")?.trim() || "unknown";
+    await consumeRateLimit(
+      context.env.AUTH_RATE_LIMITER,
+      `account-deletion-status:${clientIp}`,
+      1,
+      "Too many account deletion status requests",
+    );
+    const parsed = accountDeletionStatusRequestSchema.safeParse(await parseBody(context.req.raw));
+    if (!parsed.success) {
+      throw new PublicError(400, "VALIDATION_ERROR", "Invalid account deletion status request");
+    }
+    const receipt = await readAccountDeletionReceipt(context.env.DB, parsed.data);
+    if (!receipt) {
+      throw new PublicError(404, "NOT_FOUND", "Account deletion receipt was not found");
+    }
+    return context.json(receipt);
+  });
 
   app.use("/v1/sync/*", async (context, next) => {
     const user = await authenticate(context.req.raw, context.env);
@@ -155,13 +255,35 @@ export function createApp(dependencies: AppDependencies = {}) {
     return context.json({ results });
   });
 
+  app.post("/v1/sync/retained-tombstone", async (context) => {
+    const user = context.get("user");
+    const parsed = retainedTombstoneRequestSchema.safeParse(await parseBody(context.req.raw));
+    if (!parsed.success) {
+      throw new PublicError(400, "VALIDATION_ERROR", "Invalid retained tombstone request");
+    }
+    await consumeRateLimit(
+      context.env.SYNC_RATE_LIMITER,
+      `retained-tombstone:${user.id}`,
+      1,
+      "Too many sync writes",
+    );
+    return context.json(await retainTombstone(context.env, user.id, parsed.data));
+  });
+
   app.get("/v1/sync/pull", async (context) => {
     const parsed = pullQuerySchema.safeParse({
       cursor: context.req.query("cursor"),
       limit: context.req.query("limit"),
+      collection: context.req.query("collection"),
     });
     if (!parsed.success) {
-      throw new PublicError(400, "VALIDATION_ERROR", "Invalid pull cursor or page limit");
+      throw new PublicError(400, "VALIDATION_ERROR", "Invalid pull query");
+    }
+    if (
+      parsed.data.collection !== undefined &&
+      !allowedCollections(context.env).has(parsed.data.collection)
+    ) {
+      throw new PublicError(403, "FORBIDDEN", "Collection is not allowed");
     }
     await consumeRateLimit(
       context.env.SYNC_RATE_LIMITER,
@@ -175,6 +297,7 @@ export function createApp(dependencies: AppDependencies = {}) {
         context.get("user").id,
         parsed.data.cursor,
         parsed.data.limit,
+        parsed.data.collection,
       ),
     );
   });
@@ -185,11 +308,28 @@ export function createApp(dependencies: AppDependencies = {}) {
 
   app.delete("/v1/account", async (context) => {
     const user = context.get("user");
+    const expectedSubject = context.req.header("x-mobile-sync-expected-subject");
+    if (!expectedSubject || expectedSubject !== user.id) {
+      throw new PublicError(409, "CONFLICT", "Account changed before the destructive request");
+    }
+    const operationId = context.req.header("x-mobile-sync-deletion-operation")?.trim();
+    if (!accountDeletionOperationIdSchema.safeParse(operationId).success) {
+      throw new PublicError(400, "VALIDATION_ERROR", "Account deletion operation ID is required");
+    }
+    const receiptInput = { operationId: operationId as string, expectedSubjectId: user.id };
     if (Date.now() - user.sessionCreatedAt.getTime() > 24 * 60 * 60 * 1_000) {
       throw new PublicError(401, "UNAUTHORIZED", "A fresh login is required");
     }
     if (dependencies.deleteAccount) {
-      await dependencies.deleteAccount(context.req.raw, context.env, user);
+      const providerOutcome = (await dependencies.deleteAccount(
+        context.req.raw,
+        context.env,
+        user,
+      )) ?? {
+        providerIds: [],
+        providerRevocationFailures: [],
+      };
+      await storeAccountDeletionReceipt(context.env.DB, receiptInput, providerOutcome);
     } else {
       const auth = createAuth(context.env);
       const outcome = await revokeProvidersAndDelete(
@@ -197,6 +337,7 @@ export function createApp(dependencies: AppDependencies = {}) {
         auth,
         user,
         context.req.raw.headers,
+        receiptInput,
       );
       if (outcome.providerRevocationFailures.length > 0) {
         console.warn("Account deleted after provider revocation failed", {
@@ -205,7 +346,9 @@ export function createApp(dependencies: AppDependencies = {}) {
         });
       }
     }
-    return context.body(null, 204);
+    const receipt = await readAccountDeletionReceipt(context.env.DB, receiptInput);
+    if (!receipt) throw new Error("Account deletion receipt disappeared after deletion");
+    return context.json(receipt);
   });
 
   app.notFound((context) =>

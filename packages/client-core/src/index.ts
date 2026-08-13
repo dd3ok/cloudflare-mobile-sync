@@ -1,5 +1,9 @@
 import {
+  type AccountDeletionOutcome,
   type AccountResponse,
+  accountDeletionOperationIdSchema,
+  accountDeletionOutcomeSchema,
+  accountDeletionStatusRequestSchema,
   accountResponseSchema,
   type ErrorCode,
   errorEnvelopeSchema,
@@ -15,6 +19,10 @@ import {
   pullResponseSchema,
   pushRequestSchema,
   pushResponseSchema,
+  type RetainedTombstoneRequest,
+  type RetainedTombstoneResponse,
+  retainedTombstoneRequestSchema,
+  retainedTombstoneResponseSchema,
   type SyncMutation,
   type SyncRecord,
 } from "@cloudflare-mobile-sync/api-contract";
@@ -79,14 +87,6 @@ interface Parser<T> {
   ): { success: true; data: T } | { success: false; error: { message: string } };
 }
 
-const nullResponseParser: Parser<null> = {
-  safeParse(value) {
-    return value === null
-      ? { success: true, data: null }
-      : { success: false, error: { message: "Expected null" } };
-  },
-};
-
 export class SyncApiError extends Error {
   readonly status: number;
   readonly code: ErrorCode;
@@ -120,7 +120,20 @@ export interface SyncClient {
   push(request: PushRequest, signal?: CancellationSignal): Promise<PushResponse>;
   pull(query?: Partial<PullQuery>, signal?: CancellationSignal): Promise<PullResponse>;
   account(signal?: CancellationSignal): Promise<AccountResponse>;
-  deleteAccount(signal?: CancellationSignal): Promise<void>;
+  deleteAccount(
+    expectedSubjectId: string,
+    operationId: string,
+    signal?: CancellationSignal,
+  ): Promise<AccountDeletionOutcome>;
+  accountDeletionStatus(
+    expectedSubjectId: string,
+    operationId: string,
+    signal?: CancellationSignal,
+  ): Promise<AccountDeletionOutcome>;
+  retainTombstone(
+    request: RetainedTombstoneRequest,
+    signal?: CancellationSignal,
+  ): Promise<RetainedTombstoneResponse>;
 }
 
 export interface SyncStore {
@@ -248,6 +261,7 @@ export function createSyncClient(options: SyncClientOptions): SyncClient {
     parser: Parser<T>,
     body?: unknown,
     signal?: CancellationSignal,
+    requestHeaders: Readonly<Record<string, string>> = {},
   ): Promise<T> {
     for (let attempt = 1; attempt <= policy.maxAttempts; attempt += 1) {
       assertNotCancelled(signal);
@@ -255,6 +269,7 @@ export function createSyncClient(options: SyncClientOptions): SyncClient {
         Accept: "application/json",
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         ...(await options.authHeaders?.()),
+        ...requestHeaders,
       };
 
       try {
@@ -307,14 +322,44 @@ export function createSyncClient(options: SyncClientOptions): SyncClient {
     },
     async pull(value = {}, signal) {
       const query = pullQuerySchema.parse(value);
-      const search = `?cursor=${query.cursor}&limit=${query.limit}`;
+      const collection =
+        query.collection === undefined ? "" : `&collection=${encodeURIComponent(query.collection)}`;
+      const search = `?cursor=${query.cursor}&limit=${query.limit}${collection}`;
       return request("GET", `/v1/sync/pull${search}`, pullResponseSchema, undefined, signal);
+    },
+    async retainTombstone(value, signal) {
+      const body = retainedTombstoneRequestSchema.parse(value);
+      return request(
+        "POST",
+        "/v1/sync/retained-tombstone",
+        retainedTombstoneResponseSchema,
+        body,
+        signal,
+      );
     },
     account(signal) {
       return request("GET", "/v1/account", accountResponseSchema, undefined, signal);
     },
-    async deleteAccount(signal) {
-      await request("DELETE", "/v1/account", nullResponseParser, undefined, signal);
+    async deleteAccount(expectedSubjectId, operationId, signal) {
+      if (!expectedSubjectId.trim()) throw new Error("Expected account subject is required");
+      const parsedOperationId = accountDeletionOperationIdSchema.parse(operationId);
+      return request("DELETE", "/v1/account", accountDeletionOutcomeSchema, undefined, signal, {
+        "X-Mobile-Sync-Expected-Subject": expectedSubjectId,
+        "X-Mobile-Sync-Deletion-Operation": parsedOperationId,
+      });
+    },
+    async accountDeletionStatus(expectedSubjectId, operationId, signal) {
+      const body = accountDeletionStatusRequestSchema.parse({
+        expectedSubjectId,
+        operationId,
+      });
+      return request(
+        "POST",
+        "/v1/account-deletions/status",
+        accountDeletionOutcomeSchema,
+        body,
+        signal,
+      );
     },
   };
 }

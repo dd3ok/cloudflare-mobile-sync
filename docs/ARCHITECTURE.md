@@ -61,7 +61,7 @@ Cloudflare D1
 ### `packages/expo-client`
 
 - Expo SDK 57-compatible SecureStore adapter
-- Maintained custom-scheme callback handling; claimed-HTTPS handoff remains deferred
+- One-time, S256 verifier-bound HTTPS session exchange; private-scheme callbacks never carry bearer cookies
 - Expo/mobile authentication integration
 - Lifecycle and network adapters where necessary
 - No provider client secrets and no direct D1 access
@@ -94,11 +94,15 @@ The first protocol should be small and explainable rather than a general realtim
 - Payloads are opaque validated JSON with configurable size and collection allowlists.
 - Writes include a client-generated mutation ID for idempotency.
 - Server changes receive a monotonic cursor/revision suitable for incremental pull.
-- Deletes create tombstones so offline devices can observe deletion.
+- Deletes retain the latest payload-free tombstone so offline devices can
+  observe deletion, while older snapshots for that logical record are compacted.
 - Pull is cursor-based and deterministically paginated.
+- Pull can filter one exact allowlisted collection in SQL; each filtered feed
+  keeps a cursor separate from the unfiltered and other collection feeds.
 - Push and pull may be separate endpoints or one bounded sync transaction, but retries must be safe.
 - Conflict behavior must be explicit, deterministic, documented, and tested. Start with a conservative record-level policy; do not claim CRDT semantics without implementing them.
-- Define tombstone retention and stale-device reset behavior before pruning deleted records.
+- Define a stale-device reset/epoch behavior before pruning the latest tombstone
+  or its compacted mutation identities.
 - Do not upload raw host-app secrets or sensitive local profile data unless the host application deliberately opts in.
 
 Candidate endpoints, subject to an ADR after implementation research:
@@ -106,6 +110,9 @@ Candidate endpoints, subject to an ADR after implementation research:
 ```text
 GET    /health
 ALL    /v1/auth/*
+POST   /v1/mobile-auth/handoffs
+POST   /v1/mobile-auth/handoffs/exchange
+POST   /v1/mobile-auth/handoffs/cancel
 POST   /v1/sync/push
 GET    /v1/sync/pull?cursor=...&limit=...
 GET    /v1/account
@@ -128,11 +135,13 @@ DELETE /v1/account
 
 1. Research, ADRs, workspace, portable packages, D1 migrations, sync API, CI, and secret scanning are complete.
 2. Better Auth, Google, Kakao, Naver, Expo callback, session, logout, and deletion code paths are implemented.
-3. Local Worker/D1 authorization, conflict, replay, tombstone, pagination, oversized input, and deletion tests pass.
+3. Local Worker/D1 authorization, conflict, replay, tombstone compaction,
+   exact-collection pagination, oversized input, and deletion tests pass.
 4. The Expo example provides persistent guest notes, optional manual sync, explicit conflict resolution, and local-data preservation after remote account deletion.
 5. The owner account's `workers.dev` Worker and production D1 database are
-   deployed, all committed migrations are applied, and Google credentials and
-   the Worker callback are configured. The Byulsata app consumes one pinned
+   deployed, and Google credentials and the Worker callback are configured.
+   That deployment predates local migrations 0004, 0005, and 0006; none is claimed
+   active until its remote migration and cutover checks pass. The Byulsata app consumes one pinned
    archive set of the three private client packages and exposes optional login,
    session restoration, logout, account deletion, and explicit synchronization
    of versioned saved-reading records and the app theme preference. Android
@@ -147,9 +156,10 @@ DELETE /v1/account
 
 ## Accepted v1 lifecycle policies
 
-- Retain tombstones and change history indefinitely. Do not add pruning until
-  measured storage pressure justifies both a retention window and an explicit
-  stale-device reset/snapshot protocol.
+- Retain the latest tombstone and compacted mutation identities indefinitely,
+  but erase superseded payload-bearing change/receipt snapshots when a record
+  is deleted. Do not prune the remaining tombstone until an explicit stale-device
+  reset/snapshot protocol exists. See ADR 0010.
 - License the repository source under MIT and prepare it as a public self-hosted
   starter. Keep workspace packages private and unpublished until versioned
   package distribution is justified and independently verified. See ADR 0005.

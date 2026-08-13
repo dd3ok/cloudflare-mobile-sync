@@ -51,11 +51,17 @@ describe("API contract", () => {
     expect(jsonPayloadSchema.safeParse(value).success).toBe(false);
   });
 
-  it("bounds pull pages", () => {
+  it("bounds pull pages and validates an optional exact collection", () => {
     expect(pullQuerySchema.parse({})).toEqual({ cursor: 0, limit: LIMITS.pullDefault });
+    expect(pullQuerySchema.parse({ collection: "saved-readings-v1" })).toEqual({
+      cursor: 0,
+      limit: LIMITS.pullDefault,
+      collection: "saved-readings-v1",
+    });
     expect(pullQuerySchema.safeParse({ cursor: 0, limit: LIMITS.pullMaximum + 1 }).success).toBe(
       false,
     );
+    expect(pullQuerySchema.safeParse({ collection: "not allowed" }).success).toBe(false);
   });
 
   it("preserves the 25-mutation client contract", () => {

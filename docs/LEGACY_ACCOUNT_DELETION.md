@@ -416,7 +416,9 @@ This procedure is tied to the current implementation in
 [`app.ts`](../apps/worker/src/app.ts), and migrations
 [`0001_auth.sql`](../apps/worker/migrations/0001_auth.sql),
 [`0002_sync.sql`](../apps/worker/migrations/0002_sync.sql), and
-[`0003_account_identity.sql`](../apps/worker/migrations/0003_account_identity.sql).
+[`0003_account_identity.sql`](../apps/worker/migrations/0003_account_identity.sql),
+plus the deletion-compaction behavior in
+[`0005_sync_deletion_compaction.sql`](../apps/worker/migrations/0005_sync_deletion_compaction.sql).
 Re-review the query shapes, cascade scope, response semantics, and receipt fields
 after any auth, schema, provider-revocation, account-linking, deletion, backup,
 or restore change. A newer migration or endpoint behavior takes precedence over

@@ -12,7 +12,73 @@ export const LIMITS = {
   collectionLength: 64,
   recordIdLength: 128,
   mutationIdLength: 128,
+  mobileAuthAudienceLength: 128,
 } as const;
+
+export const mobileAuthAudienceSchema = z
+  .string()
+  .min(3)
+  .max(LIMITS.mobileAuthAudienceLength)
+  .regex(/^[a-z][a-z0-9+.-]*$/u, "Invalid mobile auth audience")
+  .refine(
+    (value) => value.includes(".") && value !== "http" && value !== "https",
+    "Mobile auth audience must use a reverse-domain app scheme",
+  );
+
+export const pkceCodeChallengeSchema = z
+  .string()
+  .length(43)
+  .regex(/^[A-Za-z0-9_-]+$/u, "Invalid S256 code challenge");
+
+export const mobileAuthHandoffTokenSchema = z
+  .string()
+  .length(64)
+  .regex(/^[A-Fa-f0-9]+$/u, "Invalid mobile auth handoff token");
+
+export const mobileAuthHandoffPrepareRequestSchema = z
+  .object({
+    audience: mobileAuthAudienceSchema,
+    codeChallenge: pkceCodeChallengeSchema,
+  })
+  .strict();
+
+export const mobileAuthHandoffPrepareResponseSchema = z
+  .object({
+    handoffId: mobileAuthHandoffTokenSchema,
+    expiresAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+
+export const pkceCodeVerifierSchema = z
+  .string()
+  .min(43)
+  .max(128)
+  .regex(/^[A-Za-z0-9._~-]+$/u, "Invalid PKCE code verifier");
+
+export const mobileAuthHandoffExchangeRequestSchema = z
+  .object({
+    audience: mobileAuthAudienceSchema,
+    handoffId: mobileAuthHandoffTokenSchema,
+    code: mobileAuthHandoffTokenSchema,
+    verifier: pkceCodeVerifierSchema,
+  })
+  .strict();
+
+export const mobileAuthHandoffCancelRequestSchema = z
+  .object({
+    audience: mobileAuthAudienceSchema,
+    handoffId: mobileAuthHandoffTokenSchema,
+    verifier: pkceCodeVerifierSchema,
+  })
+  .strict();
+
+export const mobileAuthHandoffExchangeResponseSchema = z
+  .object({
+    sessionCookie: z.string().min(1).max(8_192),
+    userId: z.string().min(1),
+    expiresAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
 
 export type JsonPrimitive = boolean | number | string | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -155,6 +221,56 @@ export const pushRequestSchema = z
   })
   .strict();
 
+const uuidV4Schema = z
+  .string()
+  .regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+    "Expected a lowercase UUID v4",
+  );
+
+export const retainedLineageTombstoneSchema = z
+  .object({
+    v: z.number().int().positive().safe(),
+    accountSlotKey: z.string().regex(/^[a-f0-9]{64}$/u, "Invalid account slot key"),
+    head: z
+      .object({
+        schema: z
+          .string()
+          .min(1)
+          .max(128)
+          .regex(/^[A-Za-z0-9][A-Za-z0-9._/-]*$/u, "Invalid lineage schema"),
+        lineageId: uuidV4Schema,
+        versionId: uuidV4Schema,
+        ancestorVersionIds: z
+          .array(uuidV4Schema)
+          .max(64)
+          .refine((values) => new Set(values).size === values.length, {
+            message: "Ancestor version IDs must be unique",
+          }),
+        writtenAt: z
+          .string()
+          .datetime({ offset: true })
+          .refine(
+            (value) => value.endsWith("Z") && new Date(value).toISOString() === value,
+            "writtenAt must use canonical UTC ISO format",
+          ),
+        value: z.object({ state: z.literal("deleted") }).strict(),
+      })
+      .strict(),
+    consent: z.null(),
+  })
+  .strict();
+
+export const retainedTombstoneRequestSchema = z
+  .object({
+    operationId: mutationIdSchema,
+    collection: collectionNameSchema,
+    recordId: recordIdSchema,
+    baseRevision: revisionSchema,
+    tombstone: retainedLineageTombstoneSchema,
+  })
+  .strict();
+
 export const syncRecordSchema = z
   .object({
     collection: collectionNameSchema,
@@ -190,6 +306,31 @@ export const mutationResultSchema = z.discriminatedUnion("status", [
   conflictMutationResultSchema,
 ]);
 
+export const retainedTombstoneResponseSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      operationId: mutationIdSchema,
+      status: z.literal("accepted"),
+      replayed: z.boolean(),
+      record: syncRecordSchema,
+      receipt: z
+        .object({
+          operationId: mutationIdSchema,
+          completedAt: z.string().datetime({ offset: true }),
+        })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      operationId: mutationIdSchema,
+      status: z.literal("conflict"),
+      replayed: z.boolean(),
+      current: syncRecordSchema.nullable(),
+    })
+    .strict(),
+]);
+
 export const pushResponseSchema = z
   .object({
     results: z.array(mutationResultSchema),
@@ -200,6 +341,7 @@ export const pullQuerySchema = z
   .object({
     cursor: z.coerce.number().int().nonnegative().safe().default(0),
     limit: z.coerce.number().int().positive().max(LIMITS.pullMaximum).default(LIMITS.pullDefault),
+    collection: collectionNameSchema.optional(),
   })
   .strict();
 
@@ -233,6 +375,36 @@ export const accountResponseSchema = z
   })
   .strict();
 
+export const accountDeletionOperationIdSchema = z
+  .string()
+  .regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+    "Expected a lowercase UUID v4",
+  );
+
+export const accountDeletionStatusRequestSchema = z
+  .object({
+    operationId: accountDeletionOperationIdSchema,
+    expectedSubjectId: z.string().min(1).max(256),
+  })
+  .strict();
+
+export const accountDeletionOutcomeSchema = z
+  .object({
+    operationId: accountDeletionOperationIdSchema,
+    serverDataDeleted: z.literal(true),
+    providerRevocations: z.array(
+      z
+        .object({
+          providerId: z.string().min(1).max(64),
+          status: z.enum(["confirmed", "unconfirmed"]),
+        })
+        .strict(),
+    ),
+    completedAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+
 export const healthResponseSchema = z
   .object({
     ok: z.literal(true),
@@ -244,6 +416,7 @@ export const errorCodeSchema = z.enum([
   "UNAUTHORIZED",
   "FORBIDDEN",
   "NOT_FOUND",
+  "CONFLICT",
   "VALIDATION_ERROR",
   "PAYLOAD_TOO_LARGE",
   "RATE_LIMITED",
@@ -270,9 +443,25 @@ export type PushRequest = z.infer<typeof pushRequestSchema>;
 export type SyncRecord = z.infer<typeof syncRecordSchema>;
 export type MutationResult = z.infer<typeof mutationResultSchema>;
 export type PushResponse = z.infer<typeof pushResponseSchema>;
+export type RetainedLineageTombstone = z.infer<typeof retainedLineageTombstoneSchema>;
+export type RetainedTombstoneRequest = z.infer<typeof retainedTombstoneRequestSchema>;
+export type RetainedTombstoneResponse = z.infer<typeof retainedTombstoneResponseSchema>;
 export type PullQuery = z.infer<typeof pullQuerySchema>;
 export type PullResponse = z.infer<typeof pullResponseSchema>;
 export type AccountResponse = z.infer<typeof accountResponseSchema>;
+export type AccountDeletionStatusRequest = z.infer<typeof accountDeletionStatusRequestSchema>;
+export type AccountDeletionOutcome = z.infer<typeof accountDeletionOutcomeSchema>;
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 export type ErrorCode = z.infer<typeof errorCodeSchema>;
 export type ErrorEnvelope = z.infer<typeof errorEnvelopeSchema>;
+export type MobileAuthHandoffPrepareRequest = z.infer<typeof mobileAuthHandoffPrepareRequestSchema>;
+export type MobileAuthHandoffPrepareResponse = z.infer<
+  typeof mobileAuthHandoffPrepareResponseSchema
+>;
+export type MobileAuthHandoffExchangeRequest = z.infer<
+  typeof mobileAuthHandoffExchangeRequestSchema
+>;
+export type MobileAuthHandoffExchangeResponse = z.infer<
+  typeof mobileAuthHandoffExchangeResponseSchema
+>;
+export type MobileAuthHandoffCancelRequest = z.infer<typeof mobileAuthHandoffCancelRequestSchema>;
