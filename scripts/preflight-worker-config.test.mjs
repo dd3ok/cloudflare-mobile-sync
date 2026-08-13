@@ -62,7 +62,7 @@ test("preflight validates every committed deployment configuration", () => {
   }
 });
 
-test("committed deployments retain their existing fail-closed origins and collections", async () => {
+test("committed deployments retain their explicit legacy and isolated policies", async () => {
   const primary = JSON.parse(await readFile(primaryConfig, "utf8"));
   const antHell = JSON.parse(await readFile(antHellConfig, "utf8"));
 
@@ -71,6 +71,8 @@ test("committed deployments retain their existing fail-closed origins and collec
     primary.vars.TRUSTED_ORIGINS,
     "com.byeolsata.app.dev://,com.byeolsata.app.preview://,com.byeolsata.app://",
   );
+  assert.equal(primary.vars.ALLOWED_COLLECTIONS.includes("byeolsataro-production-"), false);
+  assert.equal(primary.vars.TRUSTED_ORIGINS.includes("com.ponntailstudio.byulsataro"), false);
   assert.equal(antHell.vars.ALLOWED_COLLECTIONS, "");
   assert.equal(antHell.vars.TRUSTED_ORIGINS, "com.dd3ok.anthell://");
   assert.equal(Object.hasOwn(primary, "secrets"), false);

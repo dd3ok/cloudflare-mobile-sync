@@ -34,7 +34,7 @@ ignored `apps/worker/.env.production` file for the first deployment. Wrangler
 uploads those values as encrypted Worker secrets when the file is passed with
 `--secrets-file`; the real file must never be committed.
 
-The maintainer reference instance uses:
+The maintainer reference instance is a legacy compatibility deployment and uses:
 
 ```text
 Worker origin: https://cloudflare-mobile-sync.ponntailstudio.workers.dev
@@ -42,11 +42,19 @@ D1 database: cloudflare-mobile-sync-prod
 D1 binding: DB
 ```
 
-Its production trusted-origin allowlist contains only the three Byulsata build
+Its committed trusted-origin allowlist contains only the three legacy Byulsata
 schemes (`com.byeolsata.app.dev://`, `com.byeolsata.app.preview://`, and
-`com.byeolsata.app://`). All mobile schemes must use reverse-domain notation.
-Its application-data allowlist contains only `saved-readings-v1` and
-`app-settings-v1`, the two collections explicitly synchronized by Byulsata.
+`com.byeolsata.app://`). Its application-data allowlist contains only the legacy
+`saved-readings-v1` and `app-settings-v1` collections. These values are a
+fail-closed compatibility boundary, not the contract of the current official
+app. The current `com.ponntailstudio.byulsataro*` builds are local-only and their
+variant-namespaced v2 collections are intentionally rejected.
+
+Do not replace only these strings to enable the current app. A cloud cutover must
+first approve the mobile OAuth handoff, retention/deletion semantics and staging
+E2E, then update the app identities, all three v2 collection families, OAuth
+console callbacks and deployed Worker variables as one reviewed change. All
+mobile schemes must use reverse-domain notation.
 The generic local example uses
 `com.example.cloudflaremobilesync://` and is not authorized against the
 maintainer Worker.

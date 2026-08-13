@@ -174,7 +174,7 @@ describe("Worker API", () => {
     });
   });
 
-  it("allows only the production Byulsata sync collections", async () => {
+  it("keeps the legacy collection boundary closed to the current Byulsata app", async () => {
     await seedUser("collection-policy-user");
 
     for (const collection of ["saved-readings-v1", "app-settings-v1"]) {
@@ -202,6 +202,18 @@ describe("Worker API", () => {
       },
     ]);
     expect(notes.status).toBe(403);
+
+    const currentAppCollection = await push("collection-policy-user", [
+      {
+        mutationId: "collection-policy-current-app",
+        collection: "byeolsataro-production-saved-readings-v2",
+        recordId: "record-1",
+        operation: "put",
+        baseRevision: 0,
+        payload: { value: "current-app" },
+      },
+    ]);
+    expect(currentAppCollection.status).toBe(403);
   });
 
   it("logs an opaque unexpected error without leaking its message", async () => {
