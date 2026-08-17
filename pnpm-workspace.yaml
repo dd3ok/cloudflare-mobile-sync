@@ -18,7 +18,7 @@ overrides:
   "brace-expansion@5.0.7": 5.0.9
   "js-yaml@4.3.0": 4.3.1
   lodash: 4.18.1
-  "nanoid@3.3.16": 3.3.17
+  "nanoid@3.3.16": 3.3.18
   "postcss@8.5.20": 8.5.23
   # Miniflare still pins 0.34.x; keep the patched libvips bundle until upstream catches up.
   sharp: 0.35.3
