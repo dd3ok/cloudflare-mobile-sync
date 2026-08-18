@@ -24,11 +24,12 @@ required for the first end-to-end verification.
   and secrets. Local development overrides runtime values through the ignored
   `.dev.vars` file.
 - Treat the primary configuration's original `com.byeolsata.app*` origins and
-  v1 collections as a legacy compatibility boundary. The current official
-  `com.ponntailstudio.byulsataro*` app is local-only and its namespaced v2
-  collections must remain rejected until a separately reviewed cloud cutover
-  updates every identity, collection, OAuth callback and deployed variable
-  together.
+  v1 collections as a legacy compatibility boundary. The official production
+  `com.ponntailstudio.byulsataro` app uses the separate
+  `byulsataro-sync-production` Worker and D1 deployment provisioned on
+  2026-08-18. Development and preview remain pending. Consumer activation still
+  requires a reviewed artifact and physical Android E2E; it must never repoint
+  the legacy deployment.
 - Disable preview URLs because this project has no preview deployment workflow.
 - Keep required secret *names* in `apps/worker/required-secrets.json`, keyed by
   Wrangler filename, instead of a non-schema `secrets` block in Wrangler. The

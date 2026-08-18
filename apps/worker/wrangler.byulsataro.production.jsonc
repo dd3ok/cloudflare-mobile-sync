@@ -1,18 +1,18 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "pending-byulsataro-sync-production",
+  "name": "byulsataro-sync-production",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-20",
   "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": false,
+  "workers_dev": true,
   "preview_urls": false,
   "triggers": { "crons": ["* * * * *"] },
   "observability": { "enabled": true },
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "pending-byulsataro-sync-production",
-      "database_id": "00000000-0000-0000-0000-000000000003",
+      "database_name": "byulsataro-sync-production",
+      "database_id": "5510b731-c6b3-45d1-9585-277a30f51e9b",
       "migrations_dir": "migrations"
     }
   ],
@@ -31,7 +31,7 @@
   "vars": {
     "ALLOWED_COLLECTIONS": "byeolsataro-production-birth-profile-v2,byeolsataro-production-app-settings-v2,byeolsataro-production-saved-readings-v2",
     "RETAINED_TOMBSTONE_TARGETS": "byeolsataro-production-birth-profile-v2|profile-lineage|byeolsataro-production|byeolsataro.profile-lineage/v2|2",
-    "BETTER_AUTH_URL": "https://production.pending.invalid",
+    "BETTER_AUTH_URL": "https://byulsataro-sync-production.ponntailstudio.workers.dev",
     "TRUSTED_ORIGINS": "com.ponntailstudio.byulsataro://"
   }
 }

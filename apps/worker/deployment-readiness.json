@@ -23,15 +23,8 @@
       ]
     },
     "wrangler.byulsataro.production.jsonc": {
-      "status": "pending",
-      "unresolved": [
-        "worker",
-        "d1",
-        "rateLimitNamespaces",
-        "authUrl",
-        "googleOAuthClient",
-        "secrets"
-      ]
+      "status": "ready",
+      "unresolved": []
     }
   }
 }

@@ -83,9 +83,11 @@ the temporary copy.
 Byulsataro development, preview, and production have separate committed Worker
 configurations, D1 bindings, rate-limit namespaces, exact app schemes,
 collection namespaces, public origins, Google OAuth clients, and Worker
-secrets. Their checked-in values are schema-valid pending sentinels. Preflight
-fails before secret inspection while `deployment-readiness.json` lists any
-unresolved external resource. No pending configuration is deployable.
+secrets. Development and preview keep schema-valid pending sentinels.
+Production was independently provisioned on 2026-08-18 and is marked ready only
+after remote D1 migration and secret-name preflight passed. Preflight fails
+before secret inspection while `deployment-readiness.json` lists any unresolved
+external resource. No pending configuration is deployable.
 
 ## Consequences
 

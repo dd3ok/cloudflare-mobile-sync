@@ -213,11 +213,12 @@ consumer archives on the same reviewed source revision. See ADR 0009 and
 ADR 0010.
 
 The three `wrangler.byulsataro.*.jsonc` files demonstrate strict environment
-isolation. They intentionally contain pending sentinels, and their preflight
-commands fail closed until the corresponding entry in
-`deployment-readiness.json` has no unresolved external setup. Replace Worker,
-D1, rate-limit, HTTPS origin, and Google OAuth resources independently per
-environment; never mark an entry ready merely to bypass preflight.
+isolation. Development and preview intentionally contain pending sentinels.
+Production records the separately provisioned `byulsataro-sync-production`
+Worker and D1 database. Every preflight command fails closed until its exact
+entry in `deployment-readiness.json` has no unresolved external setup. Replace
+Worker, D1, rate-limit, HTTPS origin, and Google OAuth resources independently
+per environment; never mark an entry ready merely to bypass preflight.
 
 ## 8. Production verification
 
