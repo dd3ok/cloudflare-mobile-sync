@@ -138,15 +138,17 @@ DELETE /v1/account
 3. Local Worker/D1 authorization, conflict, replay, tombstone compaction,
    exact-collection pagination, oversized input, and deletion tests pass.
 4. The Expo example provides persistent guest notes, optional manual sync, explicit conflict resolution, and local-data preservation after remote account deletion.
-5. The owner account's `workers.dev` Worker and production D1 database are
-   deployed, and Google credentials and the Worker callback are configured.
-   That deployment predates local migrations 0004, 0005, and 0006; none is claimed
-   active until its remote migration and cutover checks pass. The Byulsata app consumes one pinned
+5. The owner account retains its legacy `workers.dev` Worker and D1 database.
+   A separate `byulsataro-sync-production` Worker and APAC D1 database now run
+   migrations 0001 through 0006 with the production app scheme, v2 collections,
+   retained-tombstone policy, Google callback and four required secrets. Health,
+   migration and remote preflight checks pass; consumer artifact activation and
+   physical Android reinstall/device-transfer verification remain. The Byulsata app consumes one pinned
    archive set of the three private client packages and exposes optional login,
    session restoration, logout, account deletion, and explicit synchronization
    of versioned saved-reading records and the app theme preference. Android
    real-account login, callback return, session restoration, and logout are
-   verified there. ANT HELL independently consumes
+   verified previously against the legacy deployment. ANT HELL independently consumes
    the HTTP authentication contract from Godot and has verified Android login
    and callback return against a separate Worker and D1 database. Account
    deletion regression checks, iOS verification, and Kakao/Naver setup remain.

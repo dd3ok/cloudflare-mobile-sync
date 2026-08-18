@@ -112,7 +112,7 @@ test("Byulsataro environments isolate Worker, D1, rate limits, app audience, and
   }
 });
 
-test("Byulsataro placeholder environments fail closed before secret inspection", () => {
+test("pending Byulsataro environments fail closed before secret inspection", () => {
   const secretValues = {
     BETTER_AUTH_SECRET: "pending-primary-secret-value-must-stay-private",
     BETTER_AUTH_SECRETS: "pending-keyring-value-must-stay-private",
@@ -120,7 +120,7 @@ test("Byulsataro placeholder environments fail closed before secret inspection",
     GOOGLE_CLIENT_SECRET: "pending-google-secret-value-must-stay-private",
   };
 
-  for (const config of byulsataroConfigs) {
+  for (const config of byulsataroConfigs.slice(0, 2)) {
     const result = runPreflight(secretValues, config);
     assert.equal(result.status, 1);
     assert.match(result.stderr, /unresolved external setup/u);
@@ -128,6 +128,21 @@ test("Byulsataro placeholder environments fail closed before secret inspection",
     for (const value of Object.values(secretValues)) {
       assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, new RegExp(value, "u"));
     }
+  }
+});
+
+test("reviewed Byulsataro production configuration passes environment preflight", () => {
+  const secretValues = {
+    BETTER_AUTH_SECRET: "reviewed-production-secret-value-must-stay-private",
+    BETTER_AUTH_SECRETS: "1:reviewed-production-secret-value-must-stay-private",
+    GOOGLE_CLIENT_ID: "reviewed-production-google-id-value-must-stay-private",
+    GOOGLE_CLIENT_SECRET: "reviewed-production-google-secret-value-must-stay-private",
+  };
+
+  const result = runPreflight(secretValues, byulsataroConfigs[2]);
+  assert.equal(result.status, 0);
+  for (const value of Object.values(secretValues)) {
+    assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, new RegExp(value, "u"));
   }
 });
 

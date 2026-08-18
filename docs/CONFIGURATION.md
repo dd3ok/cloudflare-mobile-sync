@@ -47,13 +47,16 @@ schemes (`com.byeolsata.app.dev://`, `com.byeolsata.app.preview://`, and
 `com.byeolsata.app://`). Its application-data allowlist contains only the legacy
 `saved-readings-v1` and `app-settings-v1` collections. These values are a
 fail-closed compatibility boundary, not the contract of the current official
-app. The current `com.ponntailstudio.byulsataro*` builds are local-only and their
-variant-namespaced v2 collections are intentionally rejected.
+app. The isolated production deployment now accepts only
+`com.ponntailstudio.byulsataro://` and the three
+`byeolsataro-production-*-v2` collections. Development and preview remain
+pending and rejected. Previously built consumer artifacts remain local-only
+until rebuilt with the reviewed production public URL and provider flag.
 
-Do not replace only these strings to enable the current app. A cloud cutover must
-first approve the mobile OAuth handoff, retention/deletion semantics and staging
-E2E, then update the app identities, all three v2 collection families, OAuth
-console callbacks and deployed Worker variables as one reviewed change. All
+Do not repoint the legacy Worker. Production uses the separate
+`byulsataro-sync-production` Worker and D1 database; its mobile OAuth handoff,
+retention/deletion semantics, app identity, three v2 collection families,
+Google callback and Worker variables move as one reviewed deployment. All
 mobile schemes must use reverse-domain notation.
 The generic local example uses
 `com.example.cloudflaremobilesync://` and is not authorized against the

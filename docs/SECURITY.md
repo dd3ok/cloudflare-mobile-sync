@@ -65,9 +65,11 @@ Reviewed: 2026-08-13
 - Account-deletion receipts contain no account or provider subject, email, or
   token. Their operation and subject lookup keys are hashed and expire after
   seven days; both original capability values are required for recovery.
-- Byulsataro environment files remain deliberately pending and fail preflight
-  until separate Worker, D1, rate-limit, origin, Google OAuth, and secret values
-  are provisioned. No checked-in sentinel configuration is release-ready.
+- Byulsataro development and preview remain deliberately pending and fail
+  preflight. The isolated production entry is ready only because its separate
+  Worker, D1, rate-limit namespaces, origin, Google OAuth client and four secret
+  names were provisioned and remote preflight verified together. No pending
+  configuration is deployable.
 - The initiating device keeps host-owned local data by default after deleting the
   remote account. The host app may separately offer a destructive local-data
   deletion action.

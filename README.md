@@ -16,13 +16,15 @@ The HTTP protocol is platform-neutral. Expo SDK 57 is the first adapter, while p
 - Local-first Expo example that works before login and syncs only on request
 - Workers-runtime integration tests including cross-user and deletion failures
 
-A maintainer-owned reference instance is deployed and Google OAuth credentials
-and the Worker callback are configured. New local migrations 0004, 0005, and 0006 are
-pending an explicit remote migration and cutover; this source does not claim
-those paths are active on the reference instance.
+A maintainer-owned legacy reference instance remains deployed for its original
+clients. The isolated `byulsataro-sync-production` Worker and APAC D1 database
+were provisioned on 2026-08-18 with migrations 0001 through 0006, four required
+Worker secrets, the exact production app scheme and Google callback. Its health
+and remote preflight checks pass; consumer artifact activation and physical
+Android reinstall/device-transfer verification remain separate release gates.
 It is not a public sandbox: do not point another application at it. Real Google
-sign-in, redirect return, session restoration, and logout have been verified on
-Android through the Byulsata Expo consumer. The ANT HELL Godot consumer has
+sign-in, redirect return, session restoration, and logout were previously
+verified on Android through the legacy Byulsata Expo consumer. The ANT HELL Godot consumer has
 also verified Android sign-in and callback return against an isolated Worker
 and D1 deployment. Account-deletion regression checks and iOS verification
 remain, so this source release does not claim full provider or platform
