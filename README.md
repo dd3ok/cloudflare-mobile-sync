@@ -94,7 +94,9 @@ pnpm check
 See [configuration](./docs/CONFIGURATION.md), [API](./docs/API.md),
 [operations](./docs/OPERATIONS.md), [provider setup](./docs/PROVIDERS.md),
 [security model](./docs/SECURITY.md), [sync retention](./docs/SYNC_RETENTION.md),
-[security reporting](./SECURITY.md), and [research baseline](./docs/RESEARCH.md).
+[security reporting](./SECURITY.md), [domain language](./CONTEXT.md),
+[deployment-boundary ADR](./docs/adr/0013-public-platform-private-product-deployments.md), and
+[research baseline](./docs/RESEARCH.md).
 
 The maintainer's isolated consumer deployments are documented separately. See
 [ANT HELL deployment](./docs/ANT_HELL_DEPLOYMENT.md) for its authentication-only
