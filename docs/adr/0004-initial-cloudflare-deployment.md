@@ -2,6 +2,8 @@
 
 Status: accepted
 
+Deployment-configuration placement partially superseded by ADR 0013.
+
 Reviewed: 2026-08-13
 
 ## Context
