@@ -29,6 +29,16 @@ pnpm check
 pnpm security:audit
 ```
 
+For a repeatable deployment, record the full 40-character commit SHA and Git
+tree used by that installation. Do not use `main`, `latest`, or a tag as the
+machine authority. A tag is useful as a release label but can move unless the
+release is made immutable. Also record the package lock digest and each D1
+migration filename and content digest. An exact SHA identifies bytes; it does
+not replace code review, a successful required CI check, or dependency review.
+
+Keep one deployment lock per application and environment. A shared mutable
+revision entry can unintentionally upgrade several installations at once.
+
 ## 2. Replace the reference deployment values
 
 The committed `apps/worker/wrangler.jsonc` describes the maintainer's reference
@@ -141,6 +151,12 @@ Worker credentials and the callback are configured. See
 verification requirements.
 
 ## 6. Migrate and deploy
+
+Never edit or rename a migration after it has been applied to any database.
+Add a later-numbered migration instead. D1 records applied migration names;
+Worker source rollback does not restore D1 state. Design upgrades so the old
+and new Worker can both use the expanded schema, and reserve D1 Time Travel for
+explicitly approved disaster recovery.
 
 Run the remote migration explicitly before publishing code that depends on it:
 

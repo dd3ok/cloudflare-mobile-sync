@@ -66,7 +66,7 @@ pnpm security:audit
 pnpm check
 ```
 
-자세한 내용은 [설정](./docs/CONFIGURATION.md), [API](./docs/API.md), [운영](./docs/OPERATIONS.md), [인증 제공자 설정](./docs/PROVIDERS.md), [보안 모델](./docs/SECURITY.md), [동기화 보존](./docs/SYNC_RETENTION.md), [보안 문제 제보](./SECURITY.md), [기술 조사 기준](./docs/RESEARCH.md) 문서를 참고하세요.
+자세한 내용은 [설정](./docs/CONFIGURATION.md), [API](./docs/API.md), [운영](./docs/OPERATIONS.md), [인증 제공자 설정](./docs/PROVIDERS.md), [보안 모델](./docs/SECURITY.md), [동기화 보존](./docs/SYNC_RETENTION.md), [보안 문제 제보](./SECURITY.md), [도메인 용어](./CONTEXT.md), [배포 경계 ADR](./docs/adr/0013-public-platform-private-product-deployments.md), [기술 조사 기준](./docs/RESEARCH.md) 문서를 참고하세요.
 
 유지관리자의 소비 앱 배포는 서로 격리되어 있습니다. 인증 기능만 사용하는 개미지옥 설정은 [ANT HELL 배포 문서](./docs/ANT_HELL_DEPLOYMENT.md)를 참고하세요. 별사타 Worker나 D1 데이터베이스를 공유하지 않습니다.
 
