@@ -110,6 +110,13 @@ test("Byulsataro environments isolate Worker, D1, rate limits, app audience, and
     );
     assert.deepEqual(config.triggers?.crons, ["* * * * *"]);
   }
+
+  assert.equal(deployments[2].workers_dev, true);
+  assert.deepEqual(deployments[2].routes, [
+    { pattern: "sync.ponntailstudio.com", custom_domain: true },
+  ]);
+  assert.equal(Object.hasOwn(deployments[0], "routes"), false);
+  assert.equal(Object.hasOwn(deployments[1], "routes"), false);
 });
 
 test("pending Byulsataro environments fail closed before secret inspection", () => {
