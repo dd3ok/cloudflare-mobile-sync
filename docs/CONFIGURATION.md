@@ -58,6 +58,12 @@ Do not repoint the legacy Worker. Production uses the separate
 retention/deletion semantics, app identity, three v2 collection families,
 Google callback and Worker variables move as one reviewed deployment. All
 mobile schemes must use reverse-domain notation.
+`https://sync.ponntailstudio.com` is attached to that isolated Worker as its
+official Custom Domain while the `workers.dev` address remains enabled for
+already-built clients. Until the new production Google OAuth project and
+callback are configured, `BETTER_AUTH_URL` deliberately remains the reviewed
+`workers.dev` origin; changing the canonical auth URL and the mobile client URL
+is a later atomic cutover, not part of adding the alias.
 The generic local example uses
 `com.example.cloudflaremobilesync://` and is not authorized against the
 maintainer Worker.

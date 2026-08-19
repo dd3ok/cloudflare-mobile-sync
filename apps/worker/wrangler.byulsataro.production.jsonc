@@ -6,6 +6,12 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "sync.ponntailstudio.com",
+      "custom_domain": true
+    }
+  ],
   "triggers": { "crons": ["* * * * *"] },
   "observability": { "enabled": true },
   "d1_databases": [

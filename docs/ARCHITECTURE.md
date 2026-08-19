@@ -142,9 +142,13 @@ DELETE /v1/account
    A separate `byulsataro-sync-production` Worker and APAC D1 database now run
    migrations 0001 through 0006 with the production app scheme, v2 collections,
    retained-tombstone policy, Google callback and four required secrets. Health,
-   migration and remote preflight checks pass; consumer artifact activation and
-   physical Android reinstall/device-transfer verification remain. The Byulsata app consumes one pinned
-   archive set of the three private client packages and exposes optional login,
+   migration and remote preflight checks pass. The official
+   `sync.ponntailstudio.com` Custom Domain aliases that Worker while its
+   `workers.dev` origin remains available to existing builds; the canonical
+   OAuth and app URL switch remains a coordinated cutover. Consumer artifact
+   activation and physical Android reinstall/device-transfer verification
+   remain. The Byulsata app consumes one pinned archive set of the three private
+   client packages and exposes optional login,
    session restoration, logout, account deletion, and explicit synchronization
    of versioned saved-reading records and the app theme preference. Android
    real-account login, callback return, session restoration, and logout are
