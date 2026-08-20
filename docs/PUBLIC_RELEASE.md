@@ -1,66 +1,46 @@
 # Public source release checklist
 
-Reviewed: 2026-07-23
+Reviewed: 2026-08-19
 
-This checklist controls the first public source pre-release. It does not
-authorize a shared hosted service or npm publication. Source visibility and
-provider/platform production-readiness are separate claims.
+Source publication, package publication, a hosted service, and product
+production-readiness are separate decisions.
 
-## Completed before publication
+## Source release
 
-- [x] MIT license
-- [x] self-hosting and consumer configuration guides
-- [x] security policy and private-reporting path
-- [x] CI, dependency updates, tracked-tree secret scanning, and dependency audit
-- [x] placeholder-only tracked secret examples
-- [x] explicit warning that maintainer Workers are not public sandboxes
-- [x] packages remain `private: true` to prevent accidental npm publication
-- [x] Android real-account Google login, callback return, session restoration,
-      and logout verified through the Byulsata Expo consumer
-- [x] a second isolated Android consumer, ANT HELL, verified Google login and
-      callback return through the platform-neutral HTTP contract
-- [x] full Git history scanned with Gitleaks 8.30.1 in redaction mode; zero
-      findings on 2026-07-23
-- [x] README and release notes describe a self-hosted pre-release rather than a
-      shared maintainer service
+- [x] MIT license and security-reporting path
+- [x] product-neutral source/deployment boundary
+- [x] CI, dependency audit, secret scan, strict TypeScript, and Workers tests
+- [x] native Google nonce and browser-bypass negative tests
+- [x] append-only D1 migrations and local disposable migration coverage
+- [x] self-hosting, configuration, security, and operations documentation
+- [x] package manifests remain `private: true`
+- [ ] commit the native baseline from a clean worktree
+- [ ] verify public CI on the exact commit
+- [ ] publish an immutable pre-release and attach reviewed provenance
 
-## Publication transition
+## Product release blockers
 
-- [x] commit and push the release candidate from a clean worktree
-- [x] verify a clean clone can install, run `pnpm check`, run
-      `pnpm security:audit`, migrate disposable local D1 state, and build the
-      ANT HELL Worker configuration using only tracked documentation
-- [x] make the GitHub repository public after the owner reviews this checklist
-- [x] immediately enable Dependabot alerts, private vulnerability reporting,
-      branch protection, and the required `verify` CI check
-- [x] confirm public-repository CI passes
-- [x] create a `v0.1.0` GitHub pre-release from the verified commit
+- [ ] environment-specific Web and Android OAuth clients exist in the correct
+      Google Cloud projects
+- [ ] package names and actual dev/Play signing SHA-1 values are verified
+- [ ] production custom domain and `BETTER_AUTH_URL` are identical
+- [ ] dev credentials are rejected in production and vice versa
+- [ ] production-signed Android device matrix in `PROVIDERS.md` passes
+- [ ] Google provider-token columns remain null after real sign-in
+- [ ] account deletion, native disconnect failure, restore reconciliation, and
+      deletion receipt recovery are rehearsed
+- [ ] Cloudflare plan, D1 Time Travel window, log retention, and external
+      deletion ledger are recorded with evidence
 
-GitHub Free does not expose every required repository protection while this
-personal repository is private. Those settings are applied and verified
-immediately after the visibility transition, before the pre-release is created.
+No prior browser OAuth, callback, or other-consumer verification satisfies the
+new native Credential Manager gate.
 
-## Provider and platform verification still required
+## Deferred
 
-These items do not block honest source publication, but they do block the
-corresponding production-readiness claim:
-
-- [ ] reverify Android account deletion and deletion-followed-by-login after the
-      deployed backend deletion fix
-- [ ] verify ANT HELL session restoration, logout, cancellation, and deletion
-      regressions on Android
-- [ ] repeat the supported authentication, restoration, logout, and deletion
-      flow on iOS before claiming iOS support is verified
-- [ ] verify Kakao and Naver with production credentials and real accounts before
-      calling either provider production-ready
-
-## Deferred beyond the first source release
-
-- npm publication of `api-contract`, `client-core`, or `expo-client`
-- one-click Cloudflare deployment
-- stability guarantees for the v1 API
-- a shared hosted or multi-tenant service
-
-Any future npm release needs independent package manifests, built `dist`
-exports, versioning, changelogs, provenance, install tests outside this
-workspace, and a separate owner decision.
+- npm publication
+- one-click deployment
+- hosted/multi-tenant service
+- iOS, Kakao, Naver, Google API scopes, offline access, refresh tokens, and
+  automatic provider linking
+- Better Auth 1.7 migration, which must be reviewed separately from this auth
+  architecture change

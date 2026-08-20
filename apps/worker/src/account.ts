@@ -3,10 +3,6 @@ import {
   type AccountResponse,
   accountDeletionOutcomeSchema,
 } from "@cloudflare-mobile-sync/api-contract";
-import type { Auth } from "./auth";
-import type { Env } from "./env";
-import { PublicError } from "./errors";
-import { fetchWithTimeout } from "./fetch";
 
 export interface AuthenticatedUser {
   id: string;
@@ -31,8 +27,6 @@ export interface AccountDeletionReceiptInput {
   operationId: string;
   expectedSubjectId: string;
 }
-
-type ProviderAccessRevoker = (account: AccountRow) => Promise<void>;
 
 export async function getAccount(
   db: D1Database,
@@ -59,79 +53,9 @@ export async function getAccount(
   };
 }
 
-async function revokeProvider(
-  env: Env,
-  auth: Auth,
-  requestHeaders: Headers,
-  account: AccountRow,
-): Promise<void> {
-  const token = await auth.api.getAccessToken({
-    body: { providerId: account.providerId, accountId: account.accountId },
-    headers: requestHeaders,
-  });
-  const accessToken = token.accessToken;
-
-  let response: Response;
-  if (account.providerId === "google") {
-    response = await fetchWithTimeout("https://oauth2.googleapis.com/revoke", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ token: accessToken }),
-      redirect: "error",
-    });
-    if (isGoogleRevocationConfirmed(response)) return;
-  } else if (account.providerId === "kakao") {
-    response = await fetchWithTimeout("https://kapi.kakao.com/v1/user/unlink", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      redirect: "error",
-    });
-    if (response.ok) return;
-    if (response.status === 400) {
-      const body = (await response.json().catch(() => null)) as { code?: number } | null;
-      if (body?.code === -101) return;
-    }
-  } else if (account.providerId === "naver") {
-    if (!env.NAVER_CLIENT_ID || !env.NAVER_CLIENT_SECRET) {
-      throw new PublicError(503, "PROVIDER_UNAVAILABLE", "Naver is not configured", true);
-    }
-    const body = new URLSearchParams({
-      grant_type: "delete",
-      client_id: env.NAVER_CLIENT_ID,
-      client_secret: env.NAVER_CLIENT_SECRET,
-      access_token: accessToken,
-      service_provider: "NAVER",
-    });
-    response = await fetchWithTimeout("https://nid.naver.com/oauth2.0/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-      redirect: "error",
-    });
-    if (response.ok) return;
-  } else {
-    throw new PublicError(409, "FORBIDDEN", "Unknown provider cannot be unlinked safely");
-  }
-
-  throw new PublicError(
-    503,
-    "PROVIDER_UNAVAILABLE",
-    "The login provider could not complete account unlinking",
-    true,
-  );
-}
-
-export function isGoogleRevocationConfirmed(response: Response): boolean {
-  // Google's revoke endpoint documents 200 as the confirmation response. Do
-  // not broaden that contract to every 2xx status, and never treat a 400 as
-  // proof that every provider grant for this account has been removed.
-  return response.status === 200;
-}
-
 export async function deleteAccountData(
   db: D1Database,
   userId: string,
-  revokeAccess: ProviderAccessRevoker,
   receipt?: AccountDeletionReceiptInput,
 ): Promise<ProviderDeletionOutcome> {
   const accounts = await db
@@ -139,16 +63,10 @@ export async function deleteAccountData(
     .bind(userId)
     .all<AccountRow>();
 
-  const providerRevocationFailures = new Set<string>();
-  for (const account of accounts.results) {
-    try {
-      await revokeAccess(account);
-    } catch {
-      providerRevocationFailures.add(account.providerId);
-    }
-  }
-
   const providerIds = [...new Set(accounts.results.map((account) => account.providerId))].sort();
+  // Native ID-token sign-in deliberately stores no Google access or refresh token.
+  // Provider disconnect is therefore client-managed and cannot be confirmed here.
+  const providerRevocationFailures = providerIds;
   if (receipt) {
     const completedAt = new Date().toISOString();
     const outcome = deletionOutcome(receipt.operationId, completedAt, providerIds, [
@@ -167,22 +85,7 @@ export async function deleteAccountData(
     if (deleted.meta.changes < 1) throw new Error("Account deletion did not delete a user");
   }
 
-  return { providerIds, providerRevocationFailures: [...providerRevocationFailures].sort() };
-}
-
-export async function revokeProvidersAndDelete(
-  env: Env,
-  auth: Auth,
-  user: AuthenticatedUser,
-  requestHeaders: Headers,
-  receipt?: AccountDeletionReceiptInput,
-): Promise<ProviderDeletionOutcome> {
-  return deleteAccountData(
-    env.DB,
-    user.id,
-    (account) => revokeProvider(env, auth, requestHeaders, account),
-    receipt,
-  );
+  return { providerIds, providerRevocationFailures };
 }
 
 const DELETION_RECEIPT_TTL_MILLISECONDS = 7 * 24 * 60 * 60 * 1_000;

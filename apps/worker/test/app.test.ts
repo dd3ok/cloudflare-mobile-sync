@@ -1,11 +1,7 @@
 import { env } from "cloudflare:workers";
 import { LIMITS, type PullResponse, type PushResponse } from "@cloudflare-mobile-sync/api-contract";
 import { describe, expect, it, vi } from "vitest";
-import {
-  type AuthenticatedUser,
-  deleteAccountData,
-  isGoogleRevocationConfirmed,
-} from "../src/account";
+import { type AuthenticatedUser, deleteAccountData } from "../src/account";
 import { createApp } from "../src/app";
 import {
   createAuth,
@@ -13,7 +9,6 @@ import {
   validateAuthSecrets,
   validateTrustedOrigins,
 } from "../src/auth";
-import { fetchWithTimeout } from "../src/fetch";
 
 interface UserRow {
   id: string;
@@ -120,14 +115,6 @@ async function sha256Hex(value: string): Promise<string> {
 }
 
 describe("Worker API", () => {
-  it("treats only a successful Google revoke response as confirmed", () => {
-    expect(isGoogleRevocationConfirmed(new Response(null, { status: 200 }))).toBe(true);
-    expect(isGoogleRevocationConfirmed(new Response(null, { status: 201 }))).toBe(false);
-    expect(isGoogleRevocationConfirmed(new Response(null, { status: 204 }))).toBe(false);
-    expect(isGoogleRevocationConfirmed(new Response(null, { status: 400 }))).toBe(false);
-    expect(isGoogleRevocationConfirmed(new Response(null, { status: 503 }))).toBe(false);
-  });
-
   it("validates the optional Better Auth rotation keyring", () => {
     expect(
       parseVersionedSecrets(
@@ -188,17 +175,6 @@ describe("Worker API", () => {
     expect(after).toBe(before);
   });
 
-  it("aborts a stalled provider request at its timeout", async () => {
-    const stalledFetch = ((_input: RequestInfo | URL, init?: RequestInit) =>
-      new Promise<Response>((_resolve, reject) => {
-        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
-      })) as typeof globalThis.fetch;
-
-    await expect(
-      fetchWithTimeout("https://provider.example.test", {}, 5, stalledFetch),
-    ).rejects.toThrow("timeout");
-  });
-
   it("reports health and requires authentication for application data", async () => {
     const health = await apiRequest("/health", { headers: { "CF-Ray": "test-ray" } });
     expect(health.status).toBe(200);
@@ -216,7 +192,7 @@ describe("Worker API", () => {
     });
   });
 
-  it("keeps the legacy collection boundary closed to the current Byulsata app", async () => {
+  it("keeps unconfigured collections outside the current application boundary", async () => {
     await seedUser("collection-policy-user");
 
     for (const collection of ["saved-readings-v1", "app-settings-v1"]) {
@@ -1164,9 +1140,7 @@ describe("Worker API", () => {
       },
     ]);
 
-    const outcome = await deleteAccountData(env.DB, "provider-outage-user", async () => {
-      throw new Error("simulated provider outage");
-    });
+    const outcome = await deleteAccountData(env.DB, "provider-outage-user");
 
     expect(outcome).toEqual({ providerIds: ["google"], providerRevocationFailures: ["google"] });
     expect(
@@ -1250,7 +1224,7 @@ describe("Worker API", () => {
   });
 
   it("fails closed when the local account does not exist", async () => {
-    await expect(deleteAccountData(env.DB, "missing-user", async () => undefined)).rejects.toThrow(
+    await expect(deleteAccountData(env.DB, "missing-user")).rejects.toThrow(
       "Account deletion did not delete a user",
     );
   });

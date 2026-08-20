@@ -9,10 +9,5 @@ BETTER_AUTH_SECRET=replace-with-32-or-more-random-bytes
 # Use the same value at version 1 on a new install. Put the newest version first when rotating.
 BETTER_AUTH_SECRETS=1:replace-with-the-same-random-secret
 
-# Uncomment a provider only when both real values are available.
-# GOOGLE_CLIENT_ID=replace-with-google-client-id
-# GOOGLE_CLIENT_SECRET=replace-with-google-client-secret
-# KAKAO_CLIENT_ID=replace-with-kakao-client-id
-# KAKAO_CLIENT_SECRET=replace-with-kakao-client-secret
-# NAVER_CLIENT_ID=replace-with-naver-client-id
-# NAVER_CLIENT_SECRET=replace-with-naver-client-secret
+# GOOGLE_WEB_CLIENT_ID and NATIVE_APPLICATION_ID are public deployment metadata.
+# Keep them in Wrangler vars rather than duplicating them in this secret file.

@@ -1,55 +1,54 @@
-# OAuth provider setup and verification
+# Google authentication setup
 
-Reviewed: 2026-07-23
+Reviewed: 2026-08-19
 
-Provider applications and secrets are owner-controlled external resources. The repository does not create them. Enable only providers for which both client ID and client secret are set.
+The active baseline supports Android Google sign-in through Credential Manager.
+It does not use browser OAuth or a redirect URI.
 
-## Callback model
+## Per environment
 
-Providers return to the Worker. Better Auth validates the provider response, creates the database session, and then returns to an exact allowlisted callback such as `com.acme.myapp://auth/callback`.
+Create one Google Cloud project for each environment. In each project create:
 
-For a deployed Worker origin `https://sync.example.com`, register these exact provider callbacks:
+1. A **Web application** OAuth client. Its client ID is the Credential Manager
+   server client ID, the Google ID-token `aud`, and the Worker's
+   `GOOGLE_WEB_CLIENT_ID`.
+2. An **Android** OAuth client bound to the exact application ID and the SHA-1 of
+   the certificate that signs the installed APK/AAB.
 
-| Provider | Worker callback |
-| --- | --- |
-| Google | `https://sync.example.com/v1/auth/callback/google` |
-| Kakao | `https://sync.example.com/v1/auth/oauth2/callback/kakao` |
-| Naver | `https://sync.example.com/v1/auth/oauth2/callback/naver` |
+The two clients must be in the same project. Never use the Android client ID as
+the Web audience. Never put a client secret in the app or Worker; direct ID-token
+sign-in does not need one.
 
-Set `BETTER_AUTH_URL=https://sync.example.com` without the `/v1/auth` suffix. Put the reverse-domain app scheme in `TRUSTED_ORIGINS`; do not use a wildcard credentialed origin. Better Auth Expo 1.6.23 does not transfer its session cookie to an HTTP(S) callback, so a universal/app link is not a drop-in replacement for this flow.
+For development, register the actual EAS/dev signing SHA-1 and development
+package. For Google Play production, register the Play App Signing SHA-1 for the
+production package; the upload-key SHA-1 is not a substitute for the certificate
+on the installed Play artifact.
 
-Keep the consuming app's public provider list aligned with the server. Leave it
-empty for local-only use, set `EXPO_PUBLIC_MOBILE_SYNC_PROVIDERS=google` after
-Google Worker secrets are configured, then append `kakao` and `naver` only after
-their secrets and real-device verification are complete. This value controls UI
-exposure only and is not an authorization boundary.
+## Branding
 
-## Google
+OAuth consent branding still needs a public product homepage, privacy policy,
+terms, account deletion URL, verified domain, support email, and matching app
+name. These are trust and policy surfaces, not redirect URLs.
 
-Create a web OAuth client, register the exact Worker callback, and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` as Worker secrets. The adapter requests `openid`, `email`, and `profile` and uses Better Auth's maintained Google provider.
+## Device gate
 
-## Kakao
+Before production approval verify on the exact signed build:
 
-Enable Kakao Login and OpenID Connect, register the exact Worker callback, and configure consent for the profile fields actually needed. The adapter uses Kakao OIDC discovery with PKCE and maps only subject, nickname, profile image, and optional email.
+- returning authorized account;
+- new account picker and explicit Google-button fallback;
+- cancellation, network failure, outdated Play Services, and developer error;
+- wrong audience, nonce mismatch, expired attempt, consumed attempt, and replay;
+- session restore after restart, logout, and account deletion;
+- dev credentials rejected by production and vice versa;
+- provider token columns remain null.
 
-Set `KAKAO_CLIENT_ID` and `KAKAO_CLIENT_SECRET` as Worker secrets. If the application does not issue a Kakao client secret, the current server configuration must be reviewed rather than placing a public mobile key into the secret field by assumption.
+Kakao, Naver, iOS, offline access, server auth codes, Google API scopes, and
+refresh tokens are not configured. Add them only as separate provider-specific
+proof-to-server designs.
 
-## Naver
+Official references:
 
-Register the Worker callback in Naver Developers, request the minimum profile fields, and set `NAVER_CLIENT_ID` and `NAVER_CLIENT_SECRET` as Worker secrets. Naver uses explicit authorization, token, and profile endpoints rather than an OIDC discovery document in this implementation.
-
-Naver provider terms restrict collection and use of profile data. This starter maps only the provider subject, nickname/name, profile image, and optional email. Review the provider's current terms and application review requirements before production use.
-
-## Verification status
-
-| Capability | Local status | Still required |
-| --- | --- | --- |
-| Better Auth/D1 schema and session route integration | built, Workers-runtime tested, and deployed to the maintainer reference instance | each adopter's production URL and secrets |
-| Expo callback construction and SecureStore adapter | typechecked; web UI bundled | iOS/Android development build |
-| Google authorization and callback | implemented; maintainer credentials and callback configured | real-account consent/cancel/revoke tests |
-| Kakao OIDC and unlink | implemented | Kakao console enablement and real-account tests |
-| Naver OAuth and token deletion | implemented | Naver app review, real-account and error-response tests |
-
-Before declaring a provider production-ready, test successful sign-in, denied consent, user cancellation, mismatched callback rejection, restored session after restart, logout, expired/revoked token handling, explicit linking, last-provider unlink protection, provider outage, and complete account deletion on both iOS and Android.
-
-Official references are collected in [RESEARCH.md](./RESEARCH.md).
+- [Android Credential Manager Sign in with Google](https://developer.android.com/identity/sign-in/credential-manager-siwg-implementation)
+- [Google Android client setup](https://developers.google.com/identity/sign-in/android/start-integrating)
+- [Google server ID-token verification](https://developers.google.com/identity/gsi/web/guides/verify-google-id-token)
+- [Expo Google authentication](https://docs.expo.dev/guides/google-authentication/)

@@ -6,12 +6,8 @@ export interface Env {
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_SECRETS?: string;
   TRUSTED_ORIGINS: string;
-  GOOGLE_CLIENT_ID?: string;
-  GOOGLE_CLIENT_SECRET?: string;
-  KAKAO_CLIENT_ID?: string;
-  KAKAO_CLIENT_SECRET?: string;
-  NAVER_CLIENT_ID?: string;
-  NAVER_CLIENT_SECRET?: string;
+  GOOGLE_WEB_CLIENT_ID: string;
+  NATIVE_APPLICATION_ID: string;
   AUTH_RATE_LIMITER: RateLimit;
   SYNC_RATE_LIMITER: RateLimit;
 }

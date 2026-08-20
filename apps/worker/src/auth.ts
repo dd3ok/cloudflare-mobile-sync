@@ -1,8 +1,5 @@
-import { expo } from "@better-auth/expo";
 import { betterAuth } from "better-auth";
-import { genericOAuth } from "better-auth/plugins";
 import { commaSeparated, type Env } from "./env";
-import { genericProviderConfigs } from "./providers";
 
 interface VersionedSecret {
   version: number;
@@ -90,18 +87,7 @@ export function validateTrustedOrigins(env: Pick<Env, "TRUSTED_ORIGINS">): strin
 }
 
 export function createAuth(env: Env) {
-  const genericProviders = genericProviderConfigs(env);
   const secrets = validateAuthSecrets(env);
-  const google =
-    env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-      ? {
-          google: {
-            clientId: env.GOOGLE_CLIENT_ID,
-            clientSecret: env.GOOGLE_CLIENT_SECRET,
-            scope: ["openid", "email", "profile"],
-          },
-        }
-      : {};
 
   return betterAuth({
     appName: "Cloudflare Mobile Sync",
@@ -111,20 +97,17 @@ export function createAuth(env: Env) {
     secret: env.BETTER_AUTH_SECRET,
     ...(secrets.length > 0 ? { secrets } : {}),
     trustedOrigins: validateTrustedOrigins(env),
-    socialProviders: google,
-    plugins: [
-      expo(),
-      ...(genericProviders.length ? [genericOAuth({ config: genericProviders })] : []),
-    ],
+    socialProviders: {
+      google: {
+        clientId: env.GOOGLE_WEB_CLIENT_ID,
+      },
+    },
     account: {
       encryptOAuthTokens: true,
+      storeAccountCookie: false,
+      updateAccountOnSignIn: false,
       accountLinking: {
-        allowDifferentEmails: true,
-        allowUnlinkingAll: false,
-        disableImplicitLinking: true,
-        enabled: true,
-        trustedProviders: ["google", "kakao", "naver"],
-        updateUserInfoOnLink: false,
+        enabled: false,
       },
     },
     session: {

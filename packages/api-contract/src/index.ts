@@ -12,71 +12,57 @@ export const LIMITS = {
   collectionLength: 64,
   recordIdLength: 128,
   mutationIdLength: 128,
-  mobileAuthAudienceLength: 128,
+  nativeApplicationIdLength: 128,
+  nativeIdTokenLength: 16_384,
 } as const;
 
-export const mobileAuthAudienceSchema = z
+export const nativeApplicationIdSchema = z
   .string()
   .min(3)
-  .max(LIMITS.mobileAuthAudienceLength)
-  .regex(/^[a-z][a-z0-9+.-]*$/u, "Invalid mobile auth audience")
-  .refine(
-    (value) => value.includes(".") && value !== "http" && value !== "https",
-    "Mobile auth audience must use a reverse-domain app scheme",
+  .max(LIMITS.nativeApplicationIdLength)
+  .regex(
+    /^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)+$/u,
+    "Native application ID must use reverse-domain notation",
   );
 
-export const pkceCodeChallengeSchema = z
-  .string()
-  .length(43)
-  .regex(/^[A-Za-z0-9_-]+$/u, "Invalid S256 code challenge");
-
-export const mobileAuthHandoffTokenSchema = z
+export const nativeAuthTokenSchema = z
   .string()
   .length(64)
-  .regex(/^[A-Fa-f0-9]+$/u, "Invalid mobile auth handoff token");
+  .regex(/^[a-f0-9]+$/u, "Invalid native authentication token");
 
-export const mobileAuthHandoffPrepareRequestSchema = z
+export const nativeGoogleAuthAttemptRequestSchema = z
   .object({
-    audience: mobileAuthAudienceSchema,
-    codeChallenge: pkceCodeChallengeSchema,
+    applicationId: nativeApplicationIdSchema,
   })
   .strict();
 
-export const mobileAuthHandoffPrepareResponseSchema = z
+export const nativeGoogleAuthAttemptResponseSchema = z
   .object({
-    handoffId: mobileAuthHandoffTokenSchema,
+    attemptId: nativeAuthTokenSchema,
+    nonce: nativeAuthTokenSchema,
+    webClientId: z
+      .string()
+      .min(16)
+      .max(256)
+      .regex(/^[A-Za-z0-9._-]+\.apps\.googleusercontent\.com$/u, "Invalid Google Web client ID"),
     expiresAt: z.string().datetime({ offset: true }),
   })
   .strict();
 
-export const pkceCodeVerifierSchema = z
-  .string()
-  .min(43)
-  .max(128)
-  .regex(/^[A-Za-z0-9._~-]+$/u, "Invalid PKCE code verifier");
-
-export const mobileAuthHandoffExchangeRequestSchema = z
+export const nativeGoogleSignInRequestSchema = z
   .object({
-    audience: mobileAuthAudienceSchema,
-    handoffId: mobileAuthHandoffTokenSchema,
-    code: mobileAuthHandoffTokenSchema,
-    verifier: pkceCodeVerifierSchema,
-  })
-  .strict();
-
-export const mobileAuthHandoffCancelRequestSchema = z
-  .object({
-    audience: mobileAuthAudienceSchema,
-    handoffId: mobileAuthHandoffTokenSchema,
-    verifier: pkceCodeVerifierSchema,
-  })
-  .strict();
-
-export const mobileAuthHandoffExchangeResponseSchema = z
-  .object({
-    sessionCookie: z.string().min(1).max(8_192),
-    userId: z.string().min(1),
-    expiresAt: z.string().datetime({ offset: true }),
+    provider: z.literal("google"),
+    idToken: z
+      .object({
+        token: z.string().min(1).max(LIMITS.nativeIdTokenLength),
+        nonce: nativeAuthTokenSchema,
+      })
+      .strict(),
+    additionalData: z
+      .object({
+        nativeAttemptId: nativeAuthTokenSchema,
+      })
+      .strict(),
   })
   .strict();
 
@@ -454,14 +440,6 @@ export type AccountDeletionOutcome = z.infer<typeof accountDeletionOutcomeSchema
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 export type ErrorCode = z.infer<typeof errorCodeSchema>;
 export type ErrorEnvelope = z.infer<typeof errorEnvelopeSchema>;
-export type MobileAuthHandoffPrepareRequest = z.infer<typeof mobileAuthHandoffPrepareRequestSchema>;
-export type MobileAuthHandoffPrepareResponse = z.infer<
-  typeof mobileAuthHandoffPrepareResponseSchema
->;
-export type MobileAuthHandoffExchangeRequest = z.infer<
-  typeof mobileAuthHandoffExchangeRequestSchema
->;
-export type MobileAuthHandoffExchangeResponse = z.infer<
-  typeof mobileAuthHandoffExchangeResponseSchema
->;
-export type MobileAuthHandoffCancelRequest = z.infer<typeof mobileAuthHandoffCancelRequestSchema>;
+export type NativeGoogleAuthAttemptRequest = z.infer<typeof nativeGoogleAuthAttemptRequestSchema>;
+export type NativeGoogleAuthAttemptResponse = z.infer<typeof nativeGoogleAuthAttemptResponseSchema>;
+export type NativeGoogleSignInRequest = z.infer<typeof nativeGoogleSignInRequestSchema>;

@@ -3,17 +3,17 @@ import { describe, expect, it } from "vitest";
 import { runScheduledMaintenance } from "../src/scheduled-maintenance";
 
 describe("scheduled security-data maintenance", () => {
-  it("removes expired auth handoffs and account-deletion receipts without traffic", async () => {
+  it("removes expired native auth attempts and account-deletion receipts without traffic", async () => {
     const now = Date.now();
-    const handoffId = "a".repeat(64);
+    const attemptId = "a".repeat(64);
     const operationHash = "b".repeat(64);
     const subjectHash = "c".repeat(64);
     await env.DB.prepare(
-      `INSERT INTO mobile_auth_handoff
-       (id, audience, code_challenge, created_at, expires_at)
+      `INSERT INTO native_google_auth_attempt
+       (id, application_id, nonce_hash, created_at, expires_at)
        VALUES (?, ?, ?, ?, ?)`,
     )
-      .bind(handoffId, "test", "d".repeat(43), now - 2_000, now - 1_000)
+      .bind(attemptId, "com.example.test", "d".repeat(64), now - 2_000, now - 1_000)
       .run();
     await env.DB.prepare(
       `INSERT INTO account_deletion_receipt
@@ -26,8 +26,8 @@ describe("scheduled security-data maintenance", () => {
     await runScheduledMaintenance(env, now);
 
     expect(
-      await env.DB.prepare(`SELECT id FROM mobile_auth_handoff WHERE id = ?`)
-        .bind(handoffId)
+      await env.DB.prepare(`SELECT id FROM native_google_auth_attempt WHERE id = ?`)
+        .bind(attemptId)
         .first(),
     ).toBeNull();
     expect(

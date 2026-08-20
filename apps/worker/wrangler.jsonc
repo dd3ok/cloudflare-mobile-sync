@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "cloudflare-mobile-sync",
+  "name": "cloudflare-mobile-sync-example",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-20",
   "compatibility_flags": ["nodejs_compat"],
@@ -18,8 +18,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "cloudflare-mobile-sync-prod",
-      "database_id": "c0abc067-9ffa-4eb6-9496-d7117ccac23a",
+      "database_name": "cloudflare-mobile-sync-example",
+      "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
     }
   ],
@@ -43,7 +43,9 @@
   ],
   "vars": {
     "ALLOWED_COLLECTIONS": "saved-readings-v1,app-settings-v1",
-    "BETTER_AUTH_URL": "https://cloudflare-mobile-sync.ponntailstudio.workers.dev",
-    "TRUSTED_ORIGINS": "com.byeolsata.app.dev://,com.byeolsata.app.preview://,com.byeolsata.app://"
+    "BETTER_AUTH_URL": "https://sync.example.com",
+    "GOOGLE_WEB_CLIENT_ID": "123456789-cloudflare-mobile-sync.apps.googleusercontent.com",
+    "NATIVE_APPLICATION_ID": "com.example.cloudflaremobilesync",
+    "TRUSTED_ORIGINS": "com.example.cloudflaremobilesync://"
   }
 }

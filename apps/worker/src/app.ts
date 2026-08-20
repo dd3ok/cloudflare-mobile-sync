@@ -3,9 +3,8 @@ import {
   accountDeletionOperationIdSchema,
   accountDeletionStatusRequestSchema,
   LIMITS,
-  mobileAuthHandoffCancelRequestSchema,
-  mobileAuthHandoffExchangeRequestSchema,
-  mobileAuthHandoffPrepareRequestSchema,
+  nativeGoogleAuthAttemptRequestSchema,
+  nativeGoogleSignInRequestSchema,
   pullQuerySchema,
   pushRequestSchema,
   retainedTombstoneRequestSchema,
@@ -14,21 +13,19 @@ import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import {
   type AuthenticatedUser,
+  deleteAccountData,
   getAccount,
   type ProviderDeletionOutcome,
   readAccountDeletionReceipt,
-  revokeProvidersAndDelete,
   storeAccountDeletionReceipt,
 } from "./account";
 import { createAuth } from "./auth";
 import { commaSeparated, type Env } from "./env";
 import { errorEnvelope, PublicError } from "./errors";
 import {
-  cancelMobileAuthHandoff,
-  exchangeMobileAuthHandoff,
-  prepareMobileAuthHandoff,
-  secureMobileAuthRedirect,
-} from "./mobile-auth-handoff";
+  consumeNativeGoogleAuthAttempt,
+  createNativeGoogleAuthAttempt,
+} from "./native-google-auth";
 import { retainTombstone } from "./retained-tombstone";
 import { pullChanges, pushMutations } from "./sync-repository";
 
@@ -59,7 +56,12 @@ async function defaultAuthenticate(request: Request, env: Env): Promise<Authenti
   };
 }
 
-async function parseBody(request: Request): Promise<unknown> {
+interface BodyReadableRequest {
+  headers: { get(name: string): string | null };
+  body: ReadableStream<Uint8Array> | null;
+}
+
+async function parseBody(request: BodyReadableRequest): Promise<unknown> {
   const declaredLength = Number(request.headers.get("content-length") ?? 0);
   if (declaredLength > LIMITS.requestBodyBytes) {
     throw new PublicError(413, "PAYLOAD_TOO_LARGE", "Request body is too large");
@@ -145,14 +147,36 @@ export function createApp(dependencies: AppDependencies = {}) {
     );
     await next();
   });
+  app.use("/v1/auth/sign-in/social", async (context, next) => {
+    if (context.req.method !== "POST") {
+      throw new PublicError(405, "NOT_FOUND", "Route not found");
+    }
+    const parsed = nativeGoogleSignInRequestSchema.safeParse(
+      await parseBody(context.req.raw.clone()),
+    );
+    if (!parsed.success) {
+      throw new PublicError(
+        400,
+        "VALIDATION_ERROR",
+        "Only native Google ID-token sign-in is supported",
+      );
+    }
+    await consumeNativeGoogleAuthAttempt(context.env, parsed.data);
+    await next();
+  });
+  app.all("/v1/auth/callback/google", () => {
+    throw new PublicError(404, "NOT_FOUND", "Browser Google OAuth is not supported");
+  });
+  app.all("/v1/auth/link-social", () => {
+    throw new PublicError(404, "NOT_FOUND", "Provider account linking is not supported");
+  });
   app.all("/v1/auth/*", async (context) => {
-    const response = dependencies.handleAuth
+    return dependencies.handleAuth
       ? await dependencies.handleAuth(context.req.raw, context.env)
       : await createAuth(context.env).handler(context.req.raw);
-    return secureMobileAuthRedirect(context.env, response);
   });
 
-  app.post("/v1/mobile-auth/handoffs", async (context) => {
+  app.post("/v1/native-auth/google/attempts", async (context) => {
     const clientIp = context.req.header("cf-connecting-ip")?.trim() || "unknown";
     await consumeRateLimit(
       context.env.AUTH_RATE_LIMITER,
@@ -160,46 +184,11 @@ export function createApp(dependencies: AppDependencies = {}) {
       1,
       "Too many authentication requests",
     );
-    const parsed = mobileAuthHandoffPrepareRequestSchema.safeParse(
-      await parseBody(context.req.raw),
-    );
+    const parsed = nativeGoogleAuthAttemptRequestSchema.safeParse(await parseBody(context.req.raw));
     if (!parsed.success) {
-      throw new PublicError(400, "VALIDATION_ERROR", "Invalid mobile auth handoff request");
+      throw new PublicError(400, "VALIDATION_ERROR", "Invalid native authentication request");
     }
-    return context.json(await prepareMobileAuthHandoff(context.env, parsed.data), 201);
-  });
-
-  app.post("/v1/mobile-auth/handoffs/exchange", async (context) => {
-    const clientIp = context.req.header("cf-connecting-ip")?.trim() || "unknown";
-    await consumeRateLimit(
-      context.env.AUTH_RATE_LIMITER,
-      clientIp,
-      1,
-      "Too many authentication requests",
-    );
-    const parsed = mobileAuthHandoffExchangeRequestSchema.safeParse(
-      await parseBody(context.req.raw),
-    );
-    if (!parsed.success) {
-      throw new PublicError(400, "VALIDATION_ERROR", "Invalid mobile auth handoff exchange");
-    }
-    return context.json(await exchangeMobileAuthHandoff(context.env, parsed.data));
-  });
-
-  app.post("/v1/mobile-auth/handoffs/cancel", async (context) => {
-    const clientIp = context.req.header("cf-connecting-ip")?.trim() || "unknown";
-    await consumeRateLimit(
-      context.env.AUTH_RATE_LIMITER,
-      clientIp,
-      1,
-      "Too many authentication requests",
-    );
-    const parsed = mobileAuthHandoffCancelRequestSchema.safeParse(await parseBody(context.req.raw));
-    if (!parsed.success) {
-      throw new PublicError(400, "VALIDATION_ERROR", "Invalid mobile auth handoff cancellation");
-    }
-    await cancelMobileAuthHandoff(context.env, parsed.data);
-    return context.body(null, 204);
+    return context.json(await createNativeGoogleAuthAttempt(context.env, parsed.data), 201);
   });
 
   app.post("/v1/account-deletions/status", async (context) => {
@@ -331,16 +320,9 @@ export function createApp(dependencies: AppDependencies = {}) {
       };
       await storeAccountDeletionReceipt(context.env.DB, receiptInput, providerOutcome);
     } else {
-      const auth = createAuth(context.env);
-      const outcome = await revokeProvidersAndDelete(
-        context.env,
-        auth,
-        user,
-        context.req.raw.headers,
-        receiptInput,
-      );
+      const outcome = await deleteAccountData(context.env.DB, user.id, receiptInput);
       if (outcome.providerRevocationFailures.length > 0) {
-        console.warn("Account deleted after provider revocation failed", {
+        console.info("Account deleted; provider disconnect remains client-managed", {
           providers: outcome.providerRevocationFailures,
           requestId: context.get("requestId"),
         });

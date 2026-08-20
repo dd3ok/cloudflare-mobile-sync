@@ -65,6 +65,30 @@ async function main() {
     throw new Error(`Wrangler config schema validation failed at ${location}: ${detail}`);
   }
   if (
+    typeof config.vars?.GOOGLE_WEB_CLIENT_ID !== "string" ||
+    !/^[A-Za-z0-9._-]+\.apps\.googleusercontent\.com$/u.test(config.vars.GOOGLE_WEB_CLIENT_ID)
+  ) {
+    throw new Error("GOOGLE_WEB_CLIENT_ID must be a Google Web OAuth client ID");
+  }
+  if (
+    typeof config.vars?.NATIVE_APPLICATION_ID !== "string" ||
+    !/^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)+$/u.test(config.vars.NATIVE_APPLICATION_ID)
+  ) {
+    throw new Error("NATIVE_APPLICATION_ID must use reverse-domain notation");
+  }
+  for (const removedBinding of [
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "KAKAO_CLIENT_ID",
+    "KAKAO_CLIENT_SECRET",
+    "NAVER_CLIENT_ID",
+    "NAVER_CLIENT_SECRET",
+  ]) {
+    if (Object.hasOwn(config.vars, removedBinding)) {
+      throw new Error(`${removedBinding} is not supported by the native Google baseline`);
+    }
+  }
+  if (
     !Array.isArray(config.triggers?.crons) ||
     config.triggers.crons.length !== 1 ||
     config.triggers.crons[0] !== "* * * * *"
