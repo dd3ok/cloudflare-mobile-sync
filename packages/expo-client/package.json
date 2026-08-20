@@ -23,14 +23,13 @@
   },
   "dependencies": {
     "@better-auth/expo": "1.6.23",
+    "@cloudflare-mobile-sync/api-contract": "workspace:*",
     "@cloudflare-mobile-sync/client-core": "workspace:*",
     "better-auth": "1.6.23",
     "expo-constants": "57.0.6",
-    "expo-crypto": "57.0.1",
     "expo-linking": "57.0.3",
     "expo-network": "57.0.1",
-    "expo-secure-store": "57.0.1",
-    "expo-web-browser": "57.0.1"
+    "expo-secure-store": "57.0.1"
   },
   "peerDependencies": {
     "expo": "^57.0.0",

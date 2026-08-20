@@ -1,5 +1,4 @@
 import { syncOnce } from "@cloudflare-mobile-sync/client-core";
-import { createExpoCallbackUrl } from "@cloudflare-mobile-sync/expo-client";
 import * as Crypto from "expo-crypto";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
@@ -14,21 +13,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import {
-  authClient,
-  enabledProviders,
-  type ProviderId,
-  syncBaseUrl,
-  syncClient,
-} from "./src/clients";
+import { authClient, nativeGoogleAuth, syncBaseUrl, syncClient } from "./src/clients";
 import { AccountMismatchError, LocalNotesStore } from "./src/local-notes";
 
 const notesStore = new LocalNotesStore();
-const providerLabels: Readonly<Record<ProviderId, string>> = {
-  google: "Google",
-  kakao: "Kakao",
-  naver: "Naver",
-};
 
 interface ActionButtonProps {
   label: string;
@@ -104,15 +92,16 @@ function AppContent() {
     });
   }
 
-  function signIn(provider: ProviderId): void {
+  function signIn(): void {
     void run(async () => {
-      const callbackURL = createExpoCallbackUrl("auth/callback");
-      const result =
-        provider === "google"
-          ? await authClient.signIn.social({ provider, callbackURL })
-          : await authClient.signIn.oauth2({ providerId: provider, callbackURL });
-      if (result.error) throw new Error(result.error.message ?? "Sign-in failed.");
+      if (!nativeGoogleAuth) throw new Error("Native Google sign-in is not enabled.");
+      await nativeGoogleAuth.signIn();
     });
+  }
+
+  async function signOut(): Promise<void> {
+    await authClient.signOut();
+    await nativeGoogleAuth?.clearCredentialState();
   }
 
   function synchronize(): void {
@@ -147,15 +136,16 @@ function AppContent() {
           style: "destructive",
           onPress: () => {
             void run(async () => {
+              const disconnect = await nativeGoogleAuth?.revokeAccess();
               const deletion = await syncClient.deleteAccount(user.id, Crypto.randomUUID());
               await notesStore.detachDeletedAccount(user.id);
-              await authClient.signOut();
+              await signOut();
               const unconfirmed = deletion.providerRevocations
                 .filter(({ status }) => status === "unconfirmed")
                 .map(({ providerId }) => providerId);
               setMessage(
-                unconfirmed.length > 0
-                  ? `Remote account deleted. Disconnect ${unconfirmed.join(", ")} manually; local notes were kept.`
+                disconnect === "failed" || unconfirmed.length > 0
+                  ? `Remote account deleted. Google disconnect could not be confirmed; local notes were kept.`
                   : "Remote account deleted. Local notes were kept.",
               );
             });
@@ -299,11 +289,7 @@ function AppContent() {
             <Text style={styles.mutedText}>{user.email}</Text>
             <Text style={styles.accountHint}>Connected to {syncBaseUrl}</Text>
             <View style={styles.buttonRow}>
-              <ActionButton
-                label="Sign out"
-                onPress={() => void run(async () => void (await authClient.signOut()))}
-                disabled={busy}
-              />
+              <ActionButton label="Sign out" onPress={() => void run(signOut)} disabled={busy} />
               <ActionButton
                 label="Delete remote account"
                 onPress={confirmAccountDeletion}
@@ -317,20 +303,13 @@ function AppContent() {
             <Text style={styles.mutedText}>
               Provider credentials stay on the Worker. The app receives only the session cookie.
             </Text>
-            {enabledProviders.length === 0 ? (
+            {!nativeGoogleAuth ? (
               <Text style={styles.mutedText}>
                 No sign-in provider is enabled. Local-only notes remain available.
               </Text>
             ) : (
               <View style={styles.providerList}>
-                {enabledProviders.map((provider) => (
-                  <ActionButton
-                    key={provider}
-                    label={`Continue with ${providerLabels[provider]}`}
-                    onPress={() => signIn(provider)}
-                    disabled={busy}
-                  />
-                ))}
+                <ActionButton label="Continue with Google" onPress={signIn} disabled={busy} />
               </View>
             )}
           </>
@@ -349,8 +328,8 @@ function AppContent() {
       ) : null}
       <Text style={styles.footerText}>
         {Platform.OS === "web"
-          ? "Web preview verifies layout only; use an Expo development build for mobile OAuth."
-          : "This example uses an Expo development build for stable OAuth callbacks."}
+          ? "Web preview verifies layout only; native Google sign-in requires an Android development build."
+          : "Google sign-in uses Android Credential Manager and a server-issued one-time nonce."}
       </Text>
     </ScrollView>
   );

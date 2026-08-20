@@ -103,11 +103,10 @@ Before serving traffic from any Time Travel restore or SQL/R2 export:
 4. invalidate restored sessions; and
 5. exercise the client cursor recovery plan against disposable state.
 
-The current repository does not automate a deletion-reconciliation ledger or a
-sync feed epoch reset. A production restore therefore remains a stop condition
-until the operator supplies those controls. The detailed former-user support and
-restore procedure is in
-[the legacy account-deletion runbook](./LEGACY_ACCOUNT_DELETION.md).
+The current repository does not automate an external deletion-reconciliation
+ledger or a sync feed epoch reset. A production restore therefore remains a stop
+condition until the private deployment supplies and rehearses those controls.
+See [operations](./OPERATIONS.md).
 
 ## Owner decisions still required for an operated service
 

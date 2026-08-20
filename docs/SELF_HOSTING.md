@@ -1,261 +1,82 @@
-# Self-hosting guide
+# Self-hosting
 
-Reviewed: 2026-08-13
+Reviewed: 2026-08-19
 
-Cloudflare Mobile Sync is distributed as source code, not as a shared hosted
-service. Every adopter deploys one Worker and one D1 database to an account they
-control and creates their own OAuth applications. Do not point a consumer app at
-the maintainer's reference Worker.
+This repository provides Platform Source. A real installation needs a separate
+private deployment configuration for each host app and environment.
 
-The first public source release is CLI-first. One-click deployment and public
-npm packages are intentionally deferred until the first real host app completes
-provider and device verification.
+## Prerequisites
 
-## 1. Prerequisites
+- Node.js 22.13–24 and pnpm 11.9.0
+- Cloudflare account with Workers, D1, rate limits, and a managed custom domain
+- Google Cloud project for the environment
+- Web OAuth client ID
+- Android OAuth client bound to the exact package and signing SHA-1
+- Expo SDK 57 development/release build capability
 
-- Node.js 22.13 through 24 and Corepack
-- pnpm 11.9.0
-- a Cloudflare account with Workers and D1 access
-- an Expo SDK 57 development build for native OAuth verification
-- a provider developer account for every provider you enable
-
-Fork or clone the repository, then install and verify it before changing remote
-resources:
+## Prepare source
 
 ```bash
-corepack enable
 pnpm install --frozen-lockfile
 pnpm check
-pnpm security:audit
 ```
 
-For a repeatable deployment, record the full 40-character commit SHA and Git
-tree used by that installation. Do not use `main`, `latest`, or a tag as the
-machine authority. A tag is useful as a release label but can move unless the
-release is made immutable. Also record the package lock digest and each D1
-migration filename and content digest. An exact SHA identifies bytes; it does
-not replace code review, a successful required CI check, or dependency review.
+Do not deploy `apps/worker/wrangler.jsonc` unchanged. Copy the supported overlay
+fields into a private deployment instance and replace every example resource
+identity.
 
-Keep one deployment lock per application and environment. A shared mutable
-revision entry can unintentionally upgrade several installations at once.
+Required public vars:
 
-## 2. Replace the reference deployment values
-
-The committed `apps/worker/wrangler.jsonc` describes the maintainer's reference
-deployment. Before running any command with `--remote` or `wrangler deploy`,
-replace all account-specific values in your fork:
-
-- `name`: a unique Worker name
-- `database_name` and `database_id`: your D1 database
-- `ratelimits[].namespace_id`: an unused integer namespace in your account
-- `BETTER_AUTH_URL`: your stable public Worker origin
-- `TRUSTED_ORIGINS`: the exact schemes or HTTPS origins of your apps
-- `ALLOWED_COLLECTIONS`: only the logical collections your app intentionally
-  uploads
-
-Use a dedicated Worker and D1 database for each unrelated application. Sharing
-one deployment also shares user accounts, rate limits, account-deletion scope,
-and the application-data namespace.
-
-Sign in to Cloudflare and create the database:
-
-```bash
-pnpm --filter @cloudflare-mobile-sync/worker exec wrangler login
-pnpm --filter @cloudflare-mobile-sync/worker exec wrangler whoami
-pnpm --filter @cloudflare-mobile-sync/worker exec wrangler d1 create <your-database-name>
+```json
+{
+  "ALLOWED_COLLECTIONS": "your-app-notes-v1",
+  "BETTER_AUTH_URL": "https://sync.example.com",
+  "GOOGLE_WEB_CLIENT_ID": "123-example.apps.googleusercontent.com",
+  "NATIVE_APPLICATION_ID": "com.example.app",
+  "TRUSTED_ORIGINS": "com.example.app://"
+}
 ```
 
-Paste the returned database name and ID into `wrangler.jsonc`. Choose either the
-assigned `https://<worker>.<account-subdomain>.workers.dev` origin or a stable
-Custom Domain. Set `BETTER_AUTH_URL` to that origin without `/v1/auth` or a
-trailing slash.
+Required Worker secret names:
 
-For a native app, use a scheme derived from a domain the publisher controls,
-in reverse-domain notation. For scheme `com.acme.myapp`, the exact origin is:
-
-```jsonc
-"TRUSTED_ORIGINS": "com.acme.myapp://"
+```text
+BETTER_AUTH_SECRET
+BETTER_AUTH_SECRETS
 ```
 
-Multiple explicitly supported apps or build variants use a comma-separated
-list. Do not use production wildcards merely to avoid listing schemes.
+Both secrets need at least 32 random bytes. Store them only through Wrangler or
+your protected CI environment. Google Web client ID is public metadata; there is
+no Google client secret.
 
-## 3. Configure local development
+## Google setup
 
-Copy the example and replace its placeholders locally:
+Create Web and Android clients in the same environment-specific Google Cloud
+project. Configure the Android client with the installed artifact's application
+ID and SHA-1. Use the Web client ID for both Credential Manager's server client
+ID and the Worker's `GOOGLE_WEB_CLIENT_ID`. No redirect URI is used.
 
-```powershell
-Copy-Item apps/worker/.dev.vars.example apps/worker/.dev.vars
-```
+## Deploy from the private instance
 
-On macOS or Linux, use `cp`. Keep `.dev.vars` ignored. Apply migrations and run
-the Worker with local D1 state:
+The private deployment must:
 
-```bash
-pnpm --filter @cloudflare-mobile-sync/worker migrate:local
-pnpm --filter @cloudflare-mobile-sync/worker dev
-```
+- pin a full reviewed source commit and migration hashes;
+- use one Worker/D1/custom domain/app/environment;
+- set `workers_dev: false` and `preview_urls: false` for production;
+- require only the two Better Auth secrets;
+- apply migrations forward-only before Worker promotion; and
+- record verification evidence without tokens or personal data.
 
-Local D1 is separate from production. Never use remote bindings merely to make
-local setup faster.
+Cloudflare and Google console changes are not authorized by this source guide.
+Use your approved deployment workflow and review the exact resource targets
+before any remote command.
 
-## 4. Create production secrets
+## Consumer integration
 
-Copy `apps/worker/.env.production.example` to the ignored
-`apps/worker/.env.production` file. Generate a fresh high-entropy value on the
-trusted deployment machine:
+The app calls `createExpoAuthClient`, supplies a
+`NativeGoogleCredentialProvider` to `createNativeGoogleAuth`, and creates its
+sync client with the same canonical HTTPS base URL. The reference app shows the
+Credential Manager adapter and fallback order.
 
-```bash
-node --input-type=module -e "import { randomBytes } from 'node:crypto'; console.log(randomBytes(48).toString('base64url'))"
-```
-
-For a new installation, put that value in `BETTER_AUTH_SECRET` and use the same
-initial value as version 1 in `BETTER_AUTH_SECRETS`:
-
-```dotenv
-BETTER_AUTH_SECRET=<generated-value>
-BETTER_AUTH_SECRETS=1:<generated-value>
-```
-
-The committed primary configuration also requires `GOOGLE_CLIENT_ID` and
-`GOOGLE_CLIENT_SECRET`; register its exact callback and replace both placeholders
-in the ignored file before preflight. Provider client IDs and secrets belong in
-this Worker-only file. Never place a provider secret, Better Auth secret,
-Cloudflare credential, session token, or D1 ID in an `EXPO_PUBLIC_*` value.
-
-If a fork deliberately removes Google from a deployment, update its provider
-behavior, documentation, tests, and that Wrangler filename's manifest entry as
-one reviewed change. Do not remove only the manifest names to bypass preflight.
-
-Update the entry for your Wrangler filename in
-`apps/worker/required-secrets.json` whenever the Worker gains or removes a
-required secret binding. Run `pnpm test:preflight` after editing configuration.
-The manifest contains names only and is safe to commit; values remain
-exclusively in ignored local files or Cloudflare secrets.
-
-## 5. Register OAuth callbacks
-
-Create provider applications under your own organization or developer account.
-For Worker origin `https://sync.example.com`, register the exact callbacks:
-
-| Provider | Callback |
-| --- | --- |
-| Google | `https://sync.example.com/v1/auth/callback/google` |
-| Kakao | `https://sync.example.com/v1/auth/oauth2/callback/kakao` |
-| Naver | `https://sync.example.com/v1/auth/oauth2/callback/naver` |
-
-Google uses a Web application OAuth client because the confidential code
-exchange occurs in the Worker. Enable only providers for which both required
-Worker credentials and the callback are configured. See
-[the provider guide](./PROVIDERS.md) for scopes, provider-specific setup, and
-verification requirements.
-
-## 6. Migrate and deploy
-
-Never edit or rename a migration after it has been applied to any database.
-Add a later-numbered migration instead. D1 records applied migration names;
-Worker source rollback does not restore D1 state. Design upgrades so the old
-and new Worker can both use the expanded schema, and reserve D1 Time Travel for
-explicitly approved disaster recovery.
-
-Run the remote migration explicitly before publishing code that depends on it:
-
-```bash
-pnpm test:preflight
-node --env-file=apps/worker/.env.production scripts/preflight-worker-config.mjs --config apps/worker/wrangler.jsonc --secrets-source environment
-pnpm --filter @cloudflare-mobile-sync/worker exec wrangler d1 migrations apply DB --remote
-pnpm --filter @cloudflare-mobile-sync/worker exec wrangler deploy --secrets-file .env.production
-```
-
-For later deployments, also run `pnpm preflight:worker` to compare the committed
-requirements with the names already attached to the remote Worker before any
-remote mutation.
-
-Wrangler resolves `DB` through the binding in your edited configuration. The
-secrets file is uploaded as encrypted Worker secrets and must remain outside
-Git.
-
-Verify the public boundary before connecting an app:
-
-```bash
-curl https://your-worker.your-subdomain.workers.dev/health
-curl https://your-worker.your-subdomain.workers.dev/v1/auth/get-session
-curl https://your-worker.your-subdomain.workers.dev/v1/account
-```
-
-Expected results are `200` with `{ "ok": true, ... }`, `200` with `null` before
-login, and `401` for the protected account endpoint before login.
-
-## 7. Connect a consumer app
-
-The public source release does not publish SDK packages to npm. An Expo app kept
-inside the forked workspace can depend on the three internal packages with
-`workspace:*`. For a separately owned app repository, build and pack all three
-private packages from one pinned source commit, then install the resulting local
-archives together:
-
-```bash
-pnpm --filter @cloudflare-mobile-sync/api-contract build
-pnpm --filter @cloudflare-mobile-sync/client-core build
-pnpm --filter @cloudflare-mobile-sync/expo-client build
-pnpm --filter @cloudflare-mobile-sync/api-contract pack --pack-destination <consumer>/vendor/cloudflare-mobile-sync
-pnpm --filter @cloudflare-mobile-sync/client-core pack --pack-destination <consumer>/vendor/cloudflare-mobile-sync
-pnpm --filter @cloudflare-mobile-sync/expo-client pack --pack-destination <consumer>/vendor/cloudflare-mobile-sync
-```
-
-Commit the three archives and the consumer lockfile so local and remote builds
-resolve the same code. Record the source commit next to the archives. This is a
-source snapshot for a self-hosted consumer, not an npm release or a promise of
-cross-version compatibility. Never copy only `expo-client` without its portable
-`client-core` and `api-contract` dependencies.
-
-The consuming Expo app receives public configuration only:
-
-```dotenv
-EXPO_PUBLIC_MOBILE_SYNC_URL=https://your-worker.your-subdomain.workers.dev
-EXPO_PUBLIC_MOBILE_SYNC_PROVIDERS=google
-```
-
-Compile the app's stable scheme into a development build and pass the same
-scheme to `createExpoAuthClient`. Expo Go is not a production OAuth verification
-target. Keep login and remote sync optional so the host app continues working
-offline.
-
-The Expo adapter prepares a one-time handoff and exchanges the result over
-HTTPS. The private-scheme callback contains only a 60-second opaque code; the
-Worker strips and rejects legacy cookie-query callbacks. Keep the Worker,
-`api-contract`, `client-core`, `expo-client`, migrations 0004, 0005, and 0006, and
-consumer archives on the same reviewed source revision. See ADR 0009 and
-ADR 0010.
-
-The three `wrangler.byulsataro.*.jsonc` files demonstrate strict environment
-isolation. Development and preview intentionally contain pending sentinels.
-Production records the separately provisioned `byulsataro-sync-production`
-Worker and D1 database. Every preflight command fails closed until its exact
-entry in `deployment-readiness.json` has no unresolved external setup. Replace
-Worker, D1, rate-limit, HTTPS origin, and Google OAuth resources independently
-per environment; never mark an entry ready merely to bypass preflight.
-
-## 8. Production verification
-
-Before serving real users, verify on every supported native platform:
-
-- successful, cancelled, and denied provider login
-- callback return, session restoration, logout, and revoked sessions
-- explicit account linking and last-provider unlink protection
-- two-user isolation, mutation replay, conflict handling, and pagination
-- complete account deletion and provider unlink state
-- privacy disclosure for every field the host app elects to upload
-- backup, restore, migration, and secret-rotation procedures
-
-This starter is not a warranty, managed service, or substitute for the adopter's
-own security and privacy review.
-
-## Official references
-
-- [Wrangler configuration](https://developers.cloudflare.com/workers/wrangler/configuration/)
-- [Cloudflare Workers secrets](https://developers.cloudflare.com/workers/configuration/secrets/)
-- [Cloudflare D1 local development](https://developers.cloudflare.com/d1/best-practices/local-development/)
-- [Cloudflare D1 migration commands](https://developers.cloudflare.com/workers/wrangler/commands/d1/)
-- [Better Auth Expo integration](https://better-auth.com/docs/integrations/expo)
-- [Google web-server OAuth](https://developers.google.com/identity/protocols/oauth2/web-server)
+Use a development build, not Expo Go. Production approval additionally requires
+the Play App Signing SHA-1 and the signed physical-device test matrix in
+[Google setup](./PROVIDERS.md).

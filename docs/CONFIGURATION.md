@@ -1,154 +1,69 @@
 # Configuration contract
 
-Reviewed: 2026-08-13
+Reviewed: 2026-08-19
 
-Configuration is split by trust boundary. The portable packages accept options
-and never read environment variables themselves.
+Configuration is split by trust boundary. Portable packages accept explicit
+options and never read environment variables.
 
-## Worker repository
+## Worker bindings
 
-Copy `apps/worker/.dev.vars.example` to `apps/worker/.dev.vars` for local
-development. It contains the complete local Worker runtime configuration except
-for the D1 and rate-limit bindings supplied by Wrangler. The real file is ignored
-by Git.
-
-| Name | Kind | Where it belongs |
+| Name | Kind | Purpose |
 | --- | --- | --- |
-| `ALLOWED_COLLECTIONS` | non-secret | Wrangler `vars`; `.dev.vars` locally |
-| `BETTER_AUTH_URL` | non-secret | Wrangler `vars`; `.dev.vars` locally |
-| `TRUSTED_ORIGINS` | non-secret | Wrangler `vars`; `.dev.vars` locally |
-| `BETTER_AUTH_SECRET` | secret | Worker secret; `.dev.vars` locally |
-| `BETTER_AUTH_SECRETS` | secret | Worker secret; `.dev.vars` locally |
-| `*_CLIENT_ID` | server configuration | Worker secret; `.dev.vars` locally |
-| `*_CLIENT_SECRET` | secret | Worker secret; `.dev.vars` locally |
-| `CLOUDFLARE_API_TOKEN` | deployment credential | CI secret only; not a Worker binding |
-| `CLOUDFLARE_ACCOUNT_ID` | deployment configuration | CI secret/variable only |
+| `DB` | D1 binding | isolated service database |
+| `AUTH_RATE_LIMITER` | binding | authentication abuse limit |
+| `SYNC_RATE_LIMITER` | binding | sync write/read limit |
+| `ALLOWED_COLLECTIONS` | public var | exact sync collection allowlist |
+| `RETAINED_TOMBSTONE_TARGETS` | public var | optional strict compaction targets |
+| `BETTER_AUTH_URL` | public var | canonical HTTPS Worker origin |
+| `TRUSTED_ORIGINS` | public var | exact Better Auth origins; no wildcard |
+| `GOOGLE_WEB_CLIENT_ID` | public var | Google ID-token audience |
+| `NATIVE_APPLICATION_ID` | public var | exact Android application ID |
+| `BETTER_AUTH_SECRET` | Worker secret | active session-signing secret |
+| `BETTER_AUTH_SECRETS` | Worker secret | versioned rotation keyring |
 
-For an interactive developer machine, prefer `wrangler login` over storing a
-Cloudflare token in a file. For CI, use a narrowly scoped API token stored in the
-CI provider's secret store. Never add either Cloudflare value to a mobile app.
+There is no `GOOGLE_CLIENT_SECRET`, generic `*_CLIENT_ID`, provider refresh
+token, or OAuth callback variable in the native baseline. The Web client ID is
+not a secret and is returned to the app as part of a nonce attempt.
 
-Production non-secret values and Cloudflare resource bindings remain explicit in
-`apps/worker/wrangler.jsonc`. Copy `apps/worker/.env.production.example` to the
-ignored `apps/worker/.env.production` file for the first deployment. Wrangler
-uploads those values as encrypted Worker secrets when the file is passed with
-`--secrets-file`; the real file must never be committed.
+`BETTER_AUTH_URL` is one canonical custom-domain origin such as
+`https://sync.example.com`. Do not mix a custom domain, `workers.dev`, and a
+different app URL in one environment. Product deployments should set
+`workers_dev: false` and `preview_urls: false` after the custom domain is ready.
 
-The maintainer reference instance is a legacy compatibility deployment and uses:
+## Environment isolation
 
-```text
-Worker origin: https://cloudflare-mobile-sync.ponntailstudio.workers.dev
-D1 database: cloudflare-mobile-sync-prod
-D1 binding: DB
-```
+Every environment has its own:
 
-Its committed trusted-origin allowlist contains only the three legacy Byulsata
-schemes (`com.byeolsata.app.dev://`, `com.byeolsata.app.preview://`, and
-`com.byeolsata.app://`). Its application-data allowlist contains only the legacy
-`saved-readings-v1` and `app-settings-v1` collections. These values are a
-fail-closed compatibility boundary, not the contract of the current official
-app. The isolated production deployment now accepts only
-`com.ponntailstudio.byulsataro://` and the three
-`byeolsataro-production-*-v2` collections. Development and preview remain
-pending and rejected. Previously built consumer artifacts remain local-only
-until rebuilt with the reviewed production public URL and provider flag.
+- Google Cloud project;
+- Web OAuth client ID;
+- Android OAuth client bound to exact package and signing SHA-1;
+- Worker, D1 database, rate-limit namespaces, custom domain, application ID,
+  collection namespace, and Better Auth secrets.
 
-Do not repoint the legacy Worker. Production uses the separate
-`byulsataro-sync-production` Worker and D1 database; its mobile OAuth handoff,
-retention/deletion semantics, app identity, three v2 collection families,
-Google callback and Worker variables move as one reviewed deployment. All
-mobile schemes must use reverse-domain notation.
-`https://sync.ponntailstudio.com` is attached to that isolated Worker as its
-official Custom Domain while the `workers.dev` address remains enabled for
-already-built clients. Until the new production Google OAuth project and
-callback are configured, `BETTER_AUTH_URL` deliberately remains the reviewed
-`workers.dev` origin; changing the canonical auth URL and the mobile client URL
-is a later atomic cutover, not part of adding the alias.
-The generic local example uses
-`com.example.cloudflaremobilesync://` and is not authorized against the
-maintainer Worker.
+A deployment accepts one Web audience only. Do not add dev and production client
+IDs to one Better Auth configuration.
 
-The D1 ID and public Worker origin are deployment configuration, not credentials.
-`BETTER_AUTH_SECRET`, `BETTER_AUTH_SECRETS`, and provider credentials remain
-secret. `apps/worker/required-secrets.json` is the repository's single source of
-truth for the secret binding names each committed deployment requires. Do not
-duplicate that list in a Wrangler `secrets` block: a stale schema path or a
-Wrangler version that does not enforce the field can otherwise create false
-assurance.
+## Expo consumer
 
-The committed primary Worker and ANT HELL Worker each require four names:
-`BETTER_AUTH_SECRET`, `BETTER_AUTH_SECRETS`, `GOOGLE_CLIENT_ID`, and
-`GOOGLE_CLIENT_SECRET`. The primary entry includes Google because that reference
-deployment exposes the verified Google vertical slice; a missing provider secret
-must fail before a deployment rather than silently remove its login method.
-Kakao and Naver remain optional and are not listed until their corresponding
-deployment intentionally enables them.
-
-`pnpm test:preflight` validates both committed Wrangler files against the JSON
-Schema shipped with the pinned local Wrangler, checks the secret-name manifest,
-and verifies fail-closed origin and collection policies. It uses fixtures and
-does not require Cloudflare credentials. Immediately before an existing remote
-deployment, use the read-only name check for the selected Worker:
-
-```bash
-pnpm preflight:worker
-pnpm preflight:ant-hell
-```
-
-These commands call `wrangler secret list --format json` and compare names only;
-secret values are neither available from Wrangler nor printed by the preflight.
-For a first deployment whose remote secrets do not exist yet, run the CLI with
-`--secrets-source environment` in a process that already has the required names
-set. The environment preflight also rejects the committed example placeholder
-values without printing them. It does not replace provider-side credential
-validation; then upload the same reviewed values atomically with `--secrets-file`:
-
-```bash
-node --env-file=apps/worker/.env.production scripts/preflight-worker-config.mjs --config apps/worker/wrangler.jsonc --secrets-source environment
-```
-
-These reference values are not public defaults. Every adopter must replace the
-Worker name, D1 name and ID, public origin, trusted app origins, allowed
-collections, and rate-limit namespace before any remote operation. Follow
-[the self-hosting guide](./SELF_HOSTING.md).
-
-## Consuming Expo app
-
-Copy `docs/consumer-app.env.example` to the consuming app as `.env.local`:
+The consuming app needs only public values:
 
 ```dotenv
 EXPO_PUBLIC_MOBILE_SYNC_URL=https://sync.example.com
 EXPO_PUBLIC_MOBILE_SYNC_PROVIDERS=google
 ```
 
-- `EXPO_PUBLIC_MOBILE_SYNC_URL` is the public HTTPS Worker origin without a
-  trailing slash.
-- `EXPO_PUBLIC_MOBILE_SYNC_PROVIDERS` is a comma-separated subset of
-  `google,kakao,naver`. It controls only which login choices the app exposes; the
-  Worker remains authoritative about configured providers.
-- Every `EXPO_PUBLIC_*` value is bundled in plain text. Do not place credentials,
-  signing keys, tokens, D1 IDs, private user data, or provider secrets in it.
+The native application ID remains in Expo config. The Worker returns the Web
+client ID at sign-in, so the app does not need a second copy. All
+`EXPO_PUBLIC_*` values are visible in the bundle; never place secrets or tokens
+there.
 
-The app scheme, iOS bundle identifier, and Android package are build identities,
-not secrets or runtime environment variables. Keep them in the consuming app's
-Expo app configuration and pass the compiled scheme to `createExpoAuthClient`.
+Use an Expo development or release build. Expo Go cannot load the Credential
+Manager native module. `react-native-nitro-google-signin` 2.0.0 and
+`react-native-nitro-modules` 0.36.5 are exact pins in the reference app.
 
-## Domain discovery
+## Deployment ownership
 
-Wrangler can identify the active Cloudflare account after login:
-
-```bash
-pnpm --filter @cloudflare-mobile-sync/worker exec wrangler login
-pnpm --filter @cloudflare-mobile-sync/worker exec wrangler whoami
-```
-
-Wrangler does not provide a general zone-list command. To inspect managed
-domains, open the Cloudflare dashboard and select **Websites** from the account
-home. Every active zone listed there is a domain managed by that account. A
-Worker Custom Domain must be a hostname under one of those zones.
-
-As of 2026-07-20, the authenticated owner account has no managed zones. Its
-account subdomain is `ponntailstudio.workers.dev`, so the prepared Worker origin
-is `https://cloudflare-mobile-sync.ponntailstudio.workers.dev`. A future custom
-domain can replace this after a zone is added and all OAuth callbacks and
-consumer URLs are updated together.
+The committed `apps/worker/wrangler.jsonc` is a local/example config only.
+Product configs belong in a private deployment repository and must pin this
+repository by full commit plus migration hashes. Never restore real product D1
+IDs or Google project identities to this public source repository.
