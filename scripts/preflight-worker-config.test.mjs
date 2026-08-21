@@ -192,7 +192,7 @@ test("preflight rejects a requirements manifest with no deployment entry", async
 });
 
 test("remote preflight compares secret names without forwarding values", () => {
-  const unexpectedValue = "remote-value-must-stay-private";
+  const unexpectedValue = "fixture-field-that-must-not-be-forwarded";
   const result = spawnSync(
     process.execPath,
     [
@@ -210,7 +210,6 @@ test("remote preflight compares secret names without forwarding values", () => {
       env: {
         ...process.env,
         FAKE_WRANGLER_SECRET_NAMES: "BETTER_AUTH_SECRET,BETTER_AUTH_SECRETS",
-        FAKE_WRANGLER_UNEXPECTED_VALUE: unexpectedValue,
       },
     },
   );
@@ -220,7 +219,7 @@ test("remote preflight compares secret names without forwarding values", () => {
 });
 
 test("remote preflight redacts Wrangler failures", () => {
-  const unexpectedValue = "wrangler-error-value-must-stay-private";
+  const unexpectedValue = "fixture-error-that-must-not-be-forwarded";
   const result = spawnSync(
     process.execPath,
     [
@@ -235,7 +234,7 @@ test("remote preflight redacts Wrangler failures", () => {
     {
       cwd: repositoryRoot,
       encoding: "utf8",
-      env: { ...process.env, FAKE_WRANGLER_FAIL: unexpectedValue },
+      env: { ...process.env, FAKE_WRANGLER_FAIL: "1" },
     },
   );
   assert.equal(result.status, 1);

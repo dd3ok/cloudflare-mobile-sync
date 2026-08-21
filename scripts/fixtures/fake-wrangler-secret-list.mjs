@@ -1,6 +1,6 @@
 const expectedArguments = ["secret", "list", "--config"];
-if (process.env.FAKE_WRANGLER_FAIL) {
-  console.error(process.env.FAKE_WRANGLER_FAIL);
+if (process.env.FAKE_WRANGLER_FAIL === "1") {
+  console.error("fixture-error-that-must-not-be-forwarded");
   process.exitCode = 1;
 } else if (!expectedArguments.every((argument, index) => process.argv[index + 2] === argument)) {
   process.exitCode = 2;
@@ -16,7 +16,7 @@ if (process.env.FAKE_WRANGLER_FAIL) {
       names.map((name) => ({
         name,
         type: "secret_text",
-        unexpectedValue: process.env.FAKE_WRANGLER_UNEXPECTED_VALUE,
+        unexpectedValue: "fixture-field-that-must-not-be-forwarded",
       })),
     ),
   );
