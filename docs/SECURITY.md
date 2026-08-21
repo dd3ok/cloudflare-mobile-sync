@@ -57,6 +57,13 @@ the bundler against untrusted image inputs. See
 [GitHub Advisory Database issue 9028](https://github.com/github/advisory-database/issues/9028)
 and [Expo issue 48670](https://github.com/expo/expo/issues/48670).
 
+The dependency audit also runs every Monday at 00:17 UTC and can be started
+manually from GitHub Actions. Dependabot alerts remain open. The scheduled job
+uses read-only repository permission, installs no workspace dependencies, and
+fails once an exception expires, so a quiet repository cannot silently pass the
+review deadline. Updates still require normal CI review; dependency changes are
+not auto-merged.
+
 ## Historical migration
 
 The old browser handoff runtime is gone. `0004_mobile_auth_handoff.sql` remains
