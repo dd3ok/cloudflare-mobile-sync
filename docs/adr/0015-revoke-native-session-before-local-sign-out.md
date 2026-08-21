@@ -21,6 +21,9 @@ authoritative server row must be revoked before the device discards its cookie.
 - The current session is read authoritatively with cookie-cache bypass enabled.
 - A failed authoritative read or revocation preserves the local cookie and is a
   retryable failed logout.
+- A definitive authoritative `no session` result clears the stale local cookie
+  without another revocation attempt. Transport errors and indeterminate server
+  failures still preserve the cookie.
 - Hosts serialize sign-in and logout transitions. The helper also rejects a
   logout when the local session cookie changes before or during revocation, so
   it never clears a replacement session.

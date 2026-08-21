@@ -44,6 +44,16 @@ describe("revokeExpoSession", () => {
     expect(fixture.value.signOut).not.toHaveBeenCalled();
   });
 
+  it("clears a stale local cookie when the server definitively has no session", async () => {
+    const fixture = client({
+      getSession: vi.fn(async () => ({ data: null })),
+    });
+
+    await expect(revokeExpoSession(fixture.value)).resolves.toBeUndefined();
+    expect(fixture.value.revokeSession).not.toHaveBeenCalled();
+    expect(fixture.value.signOut).toHaveBeenCalledOnce();
+  });
+
   it("does not clear the local cookie when server revocation fails", async () => {
     const fixture = client({
       revokeSession: vi.fn(async () => ({ error: { status: 500 } })),

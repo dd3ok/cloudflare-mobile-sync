@@ -25,6 +25,28 @@ export interface ExpoSessionRevocationClient {
   signOut(): Promise<SignOutResult>;
 }
 
+async function clearLocalSession(
+  authClient: ExpoSessionRevocationClient,
+  expectedCookie: string,
+): Promise<void> {
+  if (authClient.getCookie().trim() !== expectedCookie) {
+    throw new Error("The local session changed during logout");
+  }
+
+  try {
+    await authClient.signOut();
+    if (authClient.getCookie().trim().length > 0) {
+      throw new Error("The local session could not be cleared");
+    }
+  } catch (error) {
+    // The Expo plugin clears its SecureStore cookie before dispatching the
+    // sign-out request. Once server absence or revocation is confirmed, an
+    // empty cookie is a safe completed logout even if the cleanup response was
+    // lost.
+    if (authClient.getCookie().trim().length > 0) throw error;
+  }
+}
+
 /**
  * Revokes the authoritative server session before Better Auth's Expo plugin
  * clears its local SecureStore cookie. Session tokens are handled in memory
@@ -39,6 +61,10 @@ export async function revokeExpoSession(authClient: ExpoSessionRevocationClient)
   const current = await authClient.getSession({
     query: { disableCookieCache: true },
   });
+  if (!current.error && current.data === null) {
+    await clearLocalSession(authClient, initialCookie);
+    return;
+  }
   const token = current.data?.session?.token;
   if (current.error || typeof token !== "string" || token.length === 0) {
     throw new Error("The authoritative session could not be read");
@@ -51,19 +77,5 @@ export async function revokeExpoSession(authClient: ExpoSessionRevocationClient)
   if (revoked.error || revoked.data?.status !== true) {
     throw new Error("The authoritative session could not be revoked");
   }
-  if (authClient.getCookie().trim() !== initialCookie) {
-    throw new Error("The local session changed during logout");
-  }
-
-  try {
-    await authClient.signOut();
-    if (authClient.getCookie().trim().length > 0) {
-      throw new Error("The local session could not be cleared");
-    }
-  } catch (error) {
-    // The Expo plugin clears its SecureStore cookie before dispatching the
-    // sign-out request. Once server revocation succeeded, an empty cookie is a
-    // safe completed logout even if that cleanup request lost its response.
-    if (authClient.getCookie().trim().length > 0) throw error;
-  }
+  await clearLocalSession(authClient, initialCookie);
 }
