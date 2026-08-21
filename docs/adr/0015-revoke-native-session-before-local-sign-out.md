@@ -21,6 +21,9 @@ authoritative server row must be revoked before the device discards its cookie.
 - The current session is read authoritatively with cookie-cache bypass enabled.
 - A failed authoritative read or revocation preserves the local cookie and is a
   retryable failed logout.
+- Hosts serialize sign-in and logout transitions. The helper also rejects a
+  logout when the local session cookie changes before or during revocation, so
+  it never clears a replacement session.
 - After confirmed server revocation, the Expo client clears SecureStore through
   Better Auth's normal sign-out action. If that request loses its response but
   the local cookie is empty, logout is complete because the server session was

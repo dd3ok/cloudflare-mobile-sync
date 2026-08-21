@@ -77,4 +77,45 @@ describe("revokeExpoSession", () => {
       "local session could not be cleared",
     );
   });
+
+  it("fails when nominally successful local cleanup leaves the cookie present", async () => {
+    const fixture = client({
+      signOut: vi.fn(async () => ({})),
+    });
+
+    await expect(revokeExpoSession(fixture.value)).rejects.toThrow(
+      "local session could not be cleared",
+    );
+  });
+
+  it("does not revoke when the local session changes during the authoritative read", async () => {
+    const fixture = client({
+      getCookie: vi
+        .fn()
+        .mockReturnValueOnce("better-auth.session_token=session-a")
+        .mockReturnValue("better-auth.session_token=session-b"),
+    });
+
+    await expect(revokeExpoSession(fixture.value)).rejects.toThrow(
+      "local session changed during logout",
+    );
+    expect(fixture.value.revokeSession).not.toHaveBeenCalled();
+    expect(fixture.value.signOut).not.toHaveBeenCalled();
+  });
+
+  it("does not clear a replacement local session after revocation", async () => {
+    const fixture = client({
+      getCookie: vi
+        .fn()
+        .mockReturnValueOnce("better-auth.session_token=session-a")
+        .mockReturnValueOnce("better-auth.session_token=session-a")
+        .mockReturnValue("better-auth.session_token=session-b"),
+    });
+
+    await expect(revokeExpoSession(fixture.value)).rejects.toThrow(
+      "local session changed during logout",
+    );
+    expect(fixture.value.revokeSession).toHaveBeenCalledOnce();
+    expect(fixture.value.signOut).not.toHaveBeenCalled();
+  });
 });

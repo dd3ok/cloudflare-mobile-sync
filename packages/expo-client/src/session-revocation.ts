@@ -31,6 +31,11 @@ export interface ExpoSessionRevocationClient {
  * only and must never be logged or returned to the host application.
  */
 export async function revokeExpoSession(authClient: ExpoSessionRevocationClient): Promise<void> {
+  const initialCookie = authClient.getCookie().trim();
+  if (initialCookie.length === 0) {
+    throw new Error("The authoritative session could not be read");
+  }
+
   const current = await authClient.getSession({
     query: { disableCookieCache: true },
   });
@@ -38,15 +43,21 @@ export async function revokeExpoSession(authClient: ExpoSessionRevocationClient)
   if (current.error || typeof token !== "string" || token.length === 0) {
     throw new Error("The authoritative session could not be read");
   }
+  if (authClient.getCookie().trim() !== initialCookie) {
+    throw new Error("The local session changed during logout");
+  }
 
   const revoked = await authClient.revokeSession({ token });
   if (revoked.error || revoked.data?.status !== true) {
     throw new Error("The authoritative session could not be revoked");
   }
+  if (authClient.getCookie().trim() !== initialCookie) {
+    throw new Error("The local session changed during logout");
+  }
 
   try {
-    const signedOut = await authClient.signOut();
-    if (signedOut.error && authClient.getCookie().trim().length > 0) {
+    await authClient.signOut();
+    if (authClient.getCookie().trim().length > 0) {
       throw new Error("The local session could not be cleared");
     }
   } catch (error) {
