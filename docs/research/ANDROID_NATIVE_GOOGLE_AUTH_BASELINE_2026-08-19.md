@@ -7,7 +7,7 @@
 
 ## 결론
 
-별사타로의 Android Google 로그인 기준은 다음으로 잡는 것이 가장 단순하고 유지보수하기 좋다.
+호스트 앱의 Android Google 로그인 기준은 다음으로 잡는 것이 가장 단순하고 유지보수하기 좋다.
 
 ```text
 Android Credential Manager
@@ -121,8 +121,8 @@ Google의 ID-token 직접 로그인 요청은 browser CSRF cookie에 의존하�
 
 | 환경 | Google Cloud project | Android application ID | Web client | Android client |
 | --- | --- | --- | --- | --- |
-| Development | 새 `byeolsataro-dev` | `com.ponntailstudio.byulsataro.dev` 권고 | dev backend audience | dev package + 실제 dev signing SHA-1 |
-| Production | `byeolsataro-prod-506001` | `com.ponntailstudio.byulsataro` | production backend audience | production package + 배포물을 실제 서명하는 SHA-1 |
+| Development | 별도 dev project | `com.example.app.dev` | dev backend audience | dev package + 실제 dev signing SHA-1 |
+| Production | 별도 production project | `com.example.app` | production backend audience | production package + 배포물을 실제 서명하는 SHA-1 |
 
 각 환경에서 Web client와 Android client는 같은 Google Cloud project에 둔다.
 
@@ -131,14 +131,14 @@ Google의 ID-token 직접 로그인 요청은 browser CSRF cookie에 의존하�
   - 해당 환경 Better Auth `google.clientId`와 정확히 같아야 한다.
   - ID token의 `aud`가 된다.
   - client ID는 공개 식별자이므로 앱 번들에 들어가도 된다.
-  - client secret은 앱에 넣지 않고 Worker secret에만 둔다. Better Auth 1.6.23의 Google provider 구성을 위해 유지하되, native ID-token 로그인은 authorization-code exchange를 사용하지 않는다.
+  - native ID-token 전용 기준은 authorization-code exchange를 사용하지 않으므로 Google client secret을 만들거나 Worker에 저장하지 않는다.
 - Android OAuth client
   - 앱의 정확한 application ID와 설치 APK/AAB를 실제 서명한 인증서 SHA-1을 등록한다.
   - Play 배포물은 Google Play App Signing 인증서 SHA-1이 핵심이다.
   - sideload EAS development/preview 빌드는 그 빌드의 실제 signing SHA-1을 dev project에 별도로 등록한다.
   - Android client ID를 앱의 `webClientId` 또는 Better Auth audience로 사용하지 않는다.
 
-dev/prod 서버는 각자 하나의 Web client ID만 audience로 허용한다. Better Auth가 여러 client ID 배열을 받을 수 있어도, 별사타로 Android 단일 환경에 불필요한 audience를 추가하면 다른 환경 token을 받아들이는 범위만 넓어진다.
+dev/prod 서버는 각자 하나의 Web client ID만 audience로 허용한다. Better Auth가 여러 client ID 배열을 받을 수 있어도, 한 호스트 앱 환경에 불필요한 audience를 추가하면 다른 환경 token을 받아들이는 범위만 넓어진다.
 
 Credential Manager 직접 ID-token 흐름은 Google browser redirect URI를 사용하지 않는다. 새 흐름이 검증되고 기존 browser 경로가 닫힌 뒤 production Web client에서 과거 Worker callback URI를 제거할 수 있다. 이 작업은 콘솔 cutover 단계이며 코드 준비 작업과 분리한다.
 
@@ -189,9 +189,9 @@ Google API를 대신 호출해야 하는 실제 제품 요구가 생기기 전�
 
 ## browser OAuth / custom-scheme handoff 제거 조건
 
-별사타로에 실제 사용자가 없다는 사실은 session/data migration을 단순하게 해 주지만, 공용 저장소의 다른 소비자를 자동으로 없애지는 않는다. 다음 조건을 모두 만족한 뒤 제거한다.
+첫 호스트 앱에 실제 사용자가 없다는 사실은 session/data migration을 단순하게 해 주지만, 공용 저장소의 다른 소비자를 자동으로 없애지는 않는다. 다음 조건을 모두 만족한 뒤 제거한다.
 
-1. Byulsata의 production-signed Android build에서 다음이 실기기 검증됐다.
+1. 호스트 앱의 production-signed Android build에서 다음이 실기기 검증됐다.
    - returning authorized account
    - new/unapproved account picker
    - explicit Google button fallback
@@ -203,7 +203,7 @@ Google API를 대신 호출해야 하는 실제 제품 요구가 생기기 전�
 4. Google direct sign-in과 명시적 account linking 모두 server-issued one-time nonce guard를 우회할 수 없다. linking UI가 없으면 link endpoint 자체를 닫는다.
 5. provider-token 미보관에 맞는 account-deletion/revoke 정책이 구현·테스트됐다.
 6. Kakao/Naver를 계속 지원한다면 각 provider의 native proof-to-server 경로가 별도로 완성됐다. 그렇지 않으면 provider를 이번 milestone에서 명시적으로 제거/보류한다. Google Credential Manager만으로 Kakao/Naver browser OAuth를 대체할 수 없다.
-7. ANT HELL 등 다른 consumer가 handoff endpoint를 사용하지 않거나 함께 이전됐음을 확인한다. 이 조건이 확인되지 않으면 공용 platform에서 endpoint를 전역 삭제하는 것은 breaking change다.
+7. 다른 consumer가 handoff endpoint를 사용하지 않거나 함께 이전됐음을 확인한다. 이 조건이 확인되지 않으면 공용 platform에서 endpoint를 전역 삭제하는 것은 breaking change다.
 8. Google 콘솔 callback 제거는 새 앱 출시 검증 후 마지막에 수행한다.
 
 조건 충족 후 코드 정리 범위:
@@ -255,13 +255,13 @@ DB migration은 이미 공개 저장소와 배포 인스턴스에 적용된 이�
 
 ### 출시 전 blocker
 
-- `byeolsataro-dev` project, dev Web client ID, dev Android client(package/SHA-1)가 아직 실제로 확인되지 않았다.
-- `byeolsataro-prod-506001`의 새 Web/Android client ID와 Play App Signing SHA-1이 이 저장소에서 확인되지 않았다.
+- 각 호스트 앱의 dev project, Web client ID, Android client(package/SHA-1)는 private deployment evidence에서 확인해야 한다.
+- production project의 Web/Android client ID와 Play App Signing SHA-1도 public Platform Source에 기록하지 않는다.
 - `react-native-nitro-google-signin` v2.0.0은 출시 이틀 차다. Expo 57/RN 0.86 production-signed Android 실기기 결과가 없다.
 - `@better-auth/expo` 1.6.23은 peer range상 Expo 57을 허용하고 현재 workspace에서 typecheck 가능한 구조지만 package 자체 개발 기준은 더 오래된 Expo/RN이다. SecureStore cookie round trip을 SDK 57 실기기에서 재검증해야 한다.
-- server-issued nonce ledger와 Google browser-path deny guard가 현재 없다. 지금 ID-token UI만 추가하면 replay와 browser bypass 요구를 충족하지 못한다.
-- provider token을 저장하지 않으면 현재 backend Google revoke path가 실패한다. account deletion semantics를 먼저 고쳐야 한다.
-- Kakao/Naver와 ANT HELL 등 다른 consumer가 legacy handoff를 계속 쓰는지 owner 수준 inventory가 필요하다. 확인 전 전역 삭제는 breaking change다.
+- server-issued nonce ledger와 Google browser-path deny guard는 현재 구현돼 있으며, 변경 시 replay/browser bypass negative test를 유지해야 한다.
+- provider token을 저장하지 않는 현재 기준에서는 account deletion과 native disconnect 결과를 분리해 유지한다.
+- 다른 consumer가 legacy handoff를 계속 쓰는지 owner 수준 inventory가 필요하다. 확인 전 전역 삭제는 breaking change다.
 
 ### 별도 결정이 필요한 항목
 

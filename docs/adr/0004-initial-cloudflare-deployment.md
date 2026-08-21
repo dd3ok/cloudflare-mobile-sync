@@ -15,27 +15,27 @@ required for the first end-to-end verification.
 
 ## Decision
 
-- Create the account subdomain `ponntailstudio.workers.dev`.
+- Create the account subdomain `maintainer-account.workers.dev`.
 - Prepare the Worker at
-  `https://cloudflare-mobile-sync.ponntailstudio.workers.dev`.
+  `https://cloudflare-mobile-sync.maintainer-account.workers.dev`.
 - Create the isolated D1 database `cloudflare-mobile-sync-prod` in APAC and keep
   the Worker binding name `DB`.
 - Keep one committed Wrangler configuration per independently deployed
-  maintainer Worker. The primary Byulsata reference and ANT HELL use separate
+  maintainer Worker. The two maintainer consumers use separate
   Workers, D1 databases, rate-limit namespaces, trusted origins, collections,
   and secrets. Local development overrides runtime values through the ignored
   `.dev.vars` file.
-- Treat the primary configuration's original `com.byeolsata.app*` origins and
+- Treat the primary configuration's original `com.example.legacy*` origins and
   v1 collections as a legacy compatibility boundary. The official production
-  `com.ponntailstudio.byulsataro` app uses the separate
-  `byulsataro-sync-production` Worker and D1 deployment provisioned on
+  `com.example.firstparty` app uses a separate
+  `first-party-sync-production` Worker and D1 deployment provisioned on
   2026-08-18. Development and preview remain pending. Consumer activation still
   requires a reviewed artifact and physical Android E2E; it must never repoint
   the legacy deployment.
 - Disable preview URLs because this project has no preview deployment workflow.
 - Keep required secret *names* in `apps/worker/required-secrets.json`, keyed by
   Wrangler filename, instead of a non-schema `secrets` block in Wrangler. The
-  current primary and ANT HELL deployments require the two Better Auth bindings
+  current maintainer deployments require the two Better Auth bindings
   and the Google client ID and secret. Secret values remain outside Git.
 - Validate each committed Wrangler file against the schema shipped by the pinned
   Wrangler version, validate the manifest and fail-closed origin/collection

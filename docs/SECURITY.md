@@ -47,6 +47,16 @@ the signed physical-device gate passes. The replacement boundary is deliberately
 small so a standalone Expo Module can replace it without changing server or
 portable sync contracts.
 
+Expo/Metro currently brings `image-size` into the build toolchain. Its ICNS,
+HEIF, and JXL parsers have two high-severity infinite-loop advisories, and no
+patched npm release is available. This code is not part of the deployed Worker
+runtime; builds accept only reviewed repository assets and CI has a hard
+timeout. The exact exceptions are fail-closed after 2026-09-12 UTC and must be
+removed as soon as Expo/Metro publishes a patched dependency path. Do not run
+the bundler against untrusted image inputs. See
+[GitHub Advisory Database issue 9028](https://github.com/github/advisory-database/issues/9028)
+and [Expo issue 48670](https://github.com/expo/expo/issues/48670).
+
 ## Historical migration
 
 The old browser handoff runtime is gone. `0004_mobile_auth_handoff.sql` remains

@@ -139,11 +139,11 @@ describe("createSyncClient", () => {
     ]);
     const client = createSyncClient({ transport, retry });
 
-    await client.pull({ cursor: 17, limit: 10, collection: "saved-readings-v1" });
+    await client.pull({ cursor: 17, limit: 10, collection: "notes-v1" });
 
     expect(transport.requests).toHaveLength(1);
     expect(transport.requests[0]?.path).toBe(
-      "/v1/sync/pull?cursor=17&limit=10&collection=saved-readings-v1",
+      "/v1/sync/pull?cursor=17&limit=10&collection=notes-v1",
     );
   });
 

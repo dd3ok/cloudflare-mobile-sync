@@ -168,4 +168,39 @@ describe("native Google authentication guard", () => {
     const linking = await post("/v1/auth/link-social", {});
     expect(linking.status).toBe(404);
   });
+
+  it("rejects normalized browser and linking path variants before Better Auth", async () => {
+    let forwardedRequests = 0;
+    const permissiveAuthApp = createApp({
+      async handleAuth() {
+        forwardedRequests += 1;
+        return Response.json({ forwarded: true });
+      },
+    });
+    const restrictedPaths = [
+      "/v1/auth/sign-in/social/",
+      "/v1/auth/callback/google/",
+      "/v1/auth/callback//google",
+      "/v1/auth/callback/%67oogle",
+      "/v1/auth/link-social/",
+    ];
+
+    for (const path of restrictedPaths) {
+      const response = await permissiveAuthApp.request(
+        `https://sync.example.test${path}`,
+        { method: "POST" },
+        env,
+      );
+      expect(response.status, path).toBe(404);
+    }
+    expect(forwardedRequests).toBe(0);
+
+    const session = await permissiveAuthApp.request(
+      "https://sync.example.test/v1/auth/get-session",
+      {},
+      env,
+    );
+    expect(session.status).toBe(200);
+    expect(forwardedRequests).toBe(1);
+  });
 });

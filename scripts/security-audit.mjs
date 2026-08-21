@@ -4,10 +4,12 @@ const exceptions = [
   {
     id: "GHSA-w3rx-r6r6-pgpr",
     expiresOn: "2026-09-12",
+    scope: "Expo/Metro build-time image parsing; no published patched image-size release",
   },
   {
     id: "GHSA-5p2g-fcmc-qvqq",
     expiresOn: "2026-09-12",
+    scope: "Expo/Metro build-time image parsing; no published patched image-size release",
   },
 ];
 
@@ -61,7 +63,9 @@ if (
 }
 
 for (const exception of exceptions) {
-  console.warn(`Temporary audit exception: ${exception.id} (expires ${exception.expiresOn} UTC)`);
+  console.warn(
+    `Temporary audit exception: ${exception.id} (${exception.scope}; expires ${exception.expiresOn} UTC)`,
+  );
 }
 
 const auditArguments = [pnpmCli, "audit", "--audit-level", "high"];

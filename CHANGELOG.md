@@ -10,7 +10,7 @@ First public source pre-release.
 - Google, Kakao, and Naver server adapters
 - Idempotent incremental sync, tombstones, conflict handling, and account deletion
 - English and Korean setup, operations, security, and self-hosting guides
-- Two isolated maintainer consumer integrations: Byulsata and ANT HELL
+- Two isolated maintainer consumer integrations across Expo and a non-Expo client
 
 Known limits: workspace packages are not published to npm, the maintainer
 deployments are not public sandboxes, iOS real-device verification remains, and

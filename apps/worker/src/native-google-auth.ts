@@ -3,6 +3,7 @@ import type {
   NativeGoogleAuthAttemptResponse,
   NativeGoogleSignInRequest,
 } from "@cloudflare-mobile-sync/api-contract";
+import { sha256Hex } from "./crypto";
 import type { Env } from "./env";
 import { PublicError } from "./errors";
 
@@ -12,11 +13,6 @@ function randomHex(bytes: number): string {
   const value = new Uint8Array(bytes);
   crypto.getRandomValues(value);
   return Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 export async function pruneExpiredNativeGoogleAuthAttempts(

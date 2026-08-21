@@ -74,4 +74,7 @@ is mutable profile data; Google `sub` is the provider account identity.
 
 The PKCE browser handoff is removed from runtime and active documentation.
 Migration `0004_mobile_auth_handoff.sql` and ADRs 0008/0009 remain immutable
-history only. ADR 0014 is authoritative.
+superseded decision history. Identifier-only privacy redactions do not change
+their decision semantics. ADR 0014 is authoritative; the
+[ADR status index](./adr/README.md) distinguishes active decisions from
+superseded context.

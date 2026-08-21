@@ -5,6 +5,7 @@ import {
   recordIdSchema,
   type SyncRecord,
 } from "@cloudflare-mobile-sync/api-contract";
+import { sha256Hex } from "./crypto";
 import { commaSeparated, type Env } from "./env";
 import { PublicError } from "./errors";
 
@@ -63,11 +64,6 @@ function targets(value: string | undefined): RetainedTombstoneTarget[] {
     throw new Error("RETAINED_TOMBSTONE_TARGETS contains a duplicate target");
   }
   return parsed;
-}
-
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function record(row: ReceiptRow): SyncRecord | null {

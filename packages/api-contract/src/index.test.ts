@@ -59,10 +59,10 @@ describe("API contract", () => {
 
   it("bounds pull pages and validates an optional exact collection", () => {
     expect(pullQuerySchema.parse({})).toEqual({ cursor: 0, limit: LIMITS.pullDefault });
-    expect(pullQuerySchema.parse({ collection: "saved-readings-v1" })).toEqual({
+    expect(pullQuerySchema.parse({ collection: "notes-v1" })).toEqual({
       cursor: 0,
       limit: LIMITS.pullDefault,
-      collection: "saved-readings-v1",
+      collection: "notes-v1",
     });
     expect(pullQuerySchema.safeParse({ cursor: 0, limit: LIMITS.pullMaximum + 1 }).success).toBe(
       false,
