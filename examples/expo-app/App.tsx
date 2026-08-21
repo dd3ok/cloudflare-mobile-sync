@@ -1,4 +1,5 @@
 import { syncOnce } from "@cloudflare-mobile-sync/client-core";
+import { revokeExpoSession } from "@cloudflare-mobile-sync/expo-client";
 import * as Crypto from "expo-crypto";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
@@ -100,6 +101,11 @@ function AppContent() {
   }
 
   async function signOut(): Promise<void> {
+    await revokeExpoSession(authClient);
+    await nativeGoogleAuth?.clearCredentialState();
+  }
+
+  async function clearDeletedAccountSession(): Promise<void> {
     await authClient.signOut();
     await nativeGoogleAuth?.clearCredentialState();
   }
@@ -139,7 +145,7 @@ function AppContent() {
               const disconnect = await nativeGoogleAuth?.revokeAccess();
               const deletion = await syncClient.deleteAccount(user.id, Crypto.randomUUID());
               await notesStore.detachDeletedAccount(user.id);
-              await signOut();
+              await clearDeletedAccountSession();
               const unconfirmed = deletion.providerRevocations
                 .filter(({ status }) => status === "unconfirmed")
                 .map(({ providerId }) => providerId);

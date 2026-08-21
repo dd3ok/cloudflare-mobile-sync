@@ -6,6 +6,7 @@ decision records.
 - ADR 0013 is authoritative for the public Platform Source/private deployment
   boundary.
 - ADR 0014 is authoritative for Android Google authentication.
+- ADR 0015 is authoritative for native current-session logout ordering.
 - ADR 0004 is historical deployment context; its product deployment placement
   is superseded by ADR 0013 and its browser OAuth guidance is superseded by ADR
   0014.
