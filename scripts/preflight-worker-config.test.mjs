@@ -207,10 +207,7 @@ test("remote preflight compares secret names without forwarding values", () => {
     {
       cwd: repositoryRoot,
       encoding: "utf8",
-      env: {
-        ...process.env,
-        FAKE_WRANGLER_SECRET_NAMES: "BETTER_AUTH_SECRET,BETTER_AUTH_SECRETS",
-      },
+      env: process.env,
     },
   );
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);

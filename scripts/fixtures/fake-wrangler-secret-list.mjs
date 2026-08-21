@@ -7,10 +7,7 @@ if (process.env.FAKE_WRANGLER_FAIL === "1") {
 } else if (process.argv.at(-2) !== "--format" || process.argv.at(-1) !== "json") {
   process.exitCode = 2;
 } else {
-  const names = (process.env.FAKE_WRANGLER_SECRET_NAMES ?? "")
-    .split(",")
-    .map((name) => name.trim())
-    .filter(Boolean);
+  const names = ["BETTER_AUTH_SECRET", "BETTER_AUTH_SECRETS"];
   console.log(
     JSON.stringify(
       names.map((name) => ({
