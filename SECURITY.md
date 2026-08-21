@@ -12,7 +12,7 @@ the real-device gates in
 
 Do not open a public issue for a suspected vulnerability. Use
 [GitHub private vulnerability reporting](https://github.com/dd3ok/cloudflare-mobile-sync/security/advisories/new)
-or email `ponntailstudio@gmail.com` if that form is unavailable.
+or email `support@ponntailstudio.com` if that form is unavailable.
 
 Include the affected commit or version, reproduction steps, expected impact,
 and any safe proof of concept. Never include real OAuth credentials, session

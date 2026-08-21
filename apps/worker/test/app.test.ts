@@ -17,7 +17,7 @@ interface UserRow {
   image: string | null;
 }
 
-const TEST_COLLECTION = "saved-readings-v1";
+const TEST_COLLECTION = "notes-v1";
 const RETAINED_COLLECTION = "profile-v2";
 const RETAINED_RECORD_ID = "profile-lineage";
 const RETAINED_NAMESPACE = "test-namespace";
@@ -132,14 +132,14 @@ describe("Worker API", () => {
     ).toThrow();
     expect(() =>
       validateAuthSecrets({
-        BETTER_AUTH_SECRET: "replace-with-at-least-32-random-bytes",
-        BETTER_AUTH_SECRETS: "1:replace-with-at-least-32-random-bytes",
+        BETTER_AUTH_SECRET: "unit-test-only-placeholder-primary-secret",
+        BETTER_AUTH_SECRETS: "1:unit-test-only-placeholder-keyring-secret",
       }),
     ).toThrow("placeholder");
     expect(() =>
       validateAuthSecrets({
         BETTER_AUTH_SECRET: "too-short",
-        BETTER_AUTH_SECRETS: "1:0123456789abcdefghijklmnopqrstuvwxyz",
+        BETTER_AUTH_SECRETS: "1:unit-test-only-placeholder-keyring-secret",
       }),
     ).toThrow("32+ bytes");
   });
@@ -195,7 +195,7 @@ describe("Worker API", () => {
   it("keeps unconfigured collections outside the current application boundary", async () => {
     await seedUser("collection-policy-user");
 
-    for (const collection of ["saved-readings-v1", "app-settings-v1"]) {
+    for (const collection of ["notes-v1", "app-settings-v1"]) {
       const response = await push("collection-policy-user", [
         {
           mutationId: `collection-policy-${collection}`,
@@ -224,7 +224,7 @@ describe("Worker API", () => {
     const currentAppCollection = await push("collection-policy-user", [
       {
         mutationId: "collection-policy-current-app",
-        collection: "byeolsataro-production-saved-readings-v2",
+        collection: "another-product-records-v2",
         recordId: "record-1",
         operation: "put",
         baseRevision: 0,

@@ -46,10 +46,10 @@ backups, provider reviews, and end-user support. Separate repositories may use
 the HTTP contract or the complete pinned archive set; copying one internal
 package in isolation is not a supported installation method.
 
-The Byulsata Expo client and ANT HELL Godot client exercise two different
-consumer boundaries. This supports the platform-neutral HTTP design, but it is
-not a substitute for iOS verification, provider review, or a compatibility
-guarantee. Those claims remain limited to the flows recorded as verified.
+The maintainer's Expo and non-Expo clients exercise two different consumer
+boundaries. This supports the platform-neutral HTTP design, but it is not a
+substitute for iOS verification, provider review, or a compatibility guarantee.
+Those claims remain limited to the flows recorded as verified.
 
 ## Sources
 

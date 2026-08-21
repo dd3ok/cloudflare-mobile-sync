@@ -24,8 +24,8 @@ function runPreflight(environment, config = primaryConfig, requirements) {
 }
 
 const availableSecrets = {
-  BETTER_AUTH_SECRET: "primary-secret-value-must-stay-private",
-  BETTER_AUTH_SECRETS: "1:primary-keyring-value-must-stay-private",
+  BETTER_AUTH_SECRET: "unit-test-only-placeholder-primary-secret",
+  BETTER_AUTH_SECRETS: "1:unit-test-only-placeholder-keyring-secret",
 };
 
 async function withConfigFixture(name, mutate, assertion) {

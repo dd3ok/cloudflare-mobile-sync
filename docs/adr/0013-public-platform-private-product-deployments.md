@@ -8,7 +8,7 @@ Reviewed: 2026-08-19
 
 Cloudflare Mobile Sync is public MIT-licensed source used by multiple first-party products and by
 independent adopters. Keeping real first-party deployment manifests and operational history in the
-public platform repository couples generic changes to Ponntail Studio products, while one shared
+public platform repository couples generic changes to maintainer products, while one shared
 multi-product runtime would expand authorization, deletion, migration, and incident blast radius.
 Copying the platform into every product repository would instead create security and migration drift.
 
@@ -16,8 +16,8 @@ Copying the platform into every product repository would instead create security
 
 - Keep `cloudflare-mobile-sync` as the product-neutral public Platform Source.
 - Store deployable examples, validation rules, and placeholder configuration in the public repository.
-- Move Ponntail Studio's real product deployment manifests and operational records to a separate
-  private `ponntail-studio/platform-deployments` repository.
+- Move real product deployment manifests and operational records to a separate private deployment
+  repository.
 - Operate one Deployment Instance per Host Application and deployment environment. A Deployment
   Instance does not contain multiple products or act as a tenant router.
 - Keep Product Accounts, provider configuration, secrets, data, migrations, deletion, recovery, and
@@ -45,8 +45,8 @@ Copying the platform into every product repository would instead create security
 
 ## Consequences
 
-The public repository stays useful to outside adopters without becoming a hosted service. Ponntail
-Studio adds one private deployment repository and must pin each product deployment to a reviewed
+The public repository stays useful to outside adopters without becoming a hosted service. The
+maintainer keeps one private deployment repository and must pin each product deployment to a reviewed
 Platform Source revision. Platform changes remain backward-compatible during staged product rollouts,
 and each product can migrate, roll back, delete data, or recover without affecting another product.
 

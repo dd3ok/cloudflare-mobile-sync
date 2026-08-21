@@ -29,7 +29,7 @@ rewriter in this starter.
 ## Consequences
 
 - New examples and documentation use a reverse-domain scheme.
-- Byulsata build variants use schemes derived from their native application
+- Host-app build variants use schemes derived from their native application
   identifiers and require new native builds after a scheme change.
 - A future migration requires maintained library support or a separately
   reviewed authentication design plus associated-domain files and native build

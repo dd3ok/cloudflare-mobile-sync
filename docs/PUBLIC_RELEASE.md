@@ -9,7 +9,8 @@ production-readiness are separate decisions.
 
 - [x] MIT license and security-reporting path
 - [x] product-neutral source/deployment boundary
-- [x] CI, dependency audit, secret scan, strict TypeScript, and Workers tests
+- [x] CI, dependency audit, current/default-branch-history secret scan, strict
+      TypeScript, and Workers tests
 - [x] native Google nonce and browser-bypass negative tests
 - [x] append-only D1 migrations and local disposable migration coverage
 - [x] self-hosting, configuration, security, and operations documentation
@@ -17,6 +18,11 @@ production-readiness are separate decisions.
 - [ ] commit the native baseline from a clean worktree
 - [ ] verify public CI on the exact commit
 - [ ] publish an immutable pre-release and attach reviewed provenance
+
+The dependency audit currently has two time-bounded Expo/Metro build-tool
+exceptions documented in the security model. They have no published patched
+release and expire fail-closed on 2026-09-12 UTC; they are not a clean-audit
+claim.
 
 ## Product release blockers
 

@@ -21,7 +21,7 @@
     "security:audit": "node scripts/security-audit.mjs",
     "security:secrets": "node scripts/check-secrets.mjs",
     "test": "pnpm run test:preflight && pnpm -r --if-present test",
-    "test:preflight": "node --test scripts/preflight-worker-config.test.mjs",
+    "test:preflight": "node --test scripts/preflight-worker-config.test.mjs scripts/secret-patterns.test.mjs",
     "typecheck": "pnpm build:packages && pnpm -r --if-present typecheck"
   },
   "devDependencies": {

@@ -44,6 +44,21 @@ export interface AppDependencies {
   handleAuth?: HandleAuth;
 }
 
+function isRestrictedAuthFallback(path: string): boolean {
+  let decodedPath: string;
+  try {
+    decodedPath = decodeURIComponent(path);
+  } catch {
+    return true;
+  }
+  const normalizedPath = decodedPath.replace(/\/{2,}/gu, "/").replace(/\/+$/u, "");
+  return (
+    normalizedPath === "/v1/auth/sign-in/social" ||
+    normalizedPath === "/v1/auth/link-social" ||
+    normalizedPath.startsWith("/v1/auth/callback/")
+  );
+}
+
 async function defaultAuthenticate(request: Request, env: Env): Promise<AuthenticatedUser | null> {
   const result = await createAuth(env).api.getSession({ headers: request.headers });
   if (!result) return null;
@@ -113,6 +128,10 @@ async function consumeRateLimit(
 
 export function createApp(dependencies: AppDependencies = {}) {
   const app = new Hono<{ Bindings: Env; Variables: Variables }>();
+  const forwardAuthRequest: HandleAuth = async (request, env) =>
+    dependencies.handleAuth
+      ? await dependencies.handleAuth(request, env)
+      : await createAuth(env).handler(request);
   const authenticate = dependencies.authenticate ?? defaultAuthenticate;
 
   app.use("*", async (context, next) => {
@@ -147,10 +166,7 @@ export function createApp(dependencies: AppDependencies = {}) {
     );
     await next();
   });
-  app.use("/v1/auth/sign-in/social", async (context, next) => {
-    if (context.req.method !== "POST") {
-      throw new PublicError(405, "NOT_FOUND", "Route not found");
-    }
+  app.post("/v1/auth/sign-in/social", async (context) => {
     const parsed = nativeGoogleSignInRequestSchema.safeParse(
       await parseBody(context.req.raw.clone()),
     );
@@ -162,7 +178,10 @@ export function createApp(dependencies: AppDependencies = {}) {
       );
     }
     await consumeNativeGoogleAuthAttempt(context.env, parsed.data);
-    await next();
+    return await forwardAuthRequest(context.req.raw, context.env);
+  });
+  app.all("/v1/auth/sign-in/social", () => {
+    throw new PublicError(405, "NOT_FOUND", "Route not found");
   });
   app.all("/v1/auth/callback/google", () => {
     throw new PublicError(404, "NOT_FOUND", "Browser Google OAuth is not supported");
@@ -171,9 +190,10 @@ export function createApp(dependencies: AppDependencies = {}) {
     throw new PublicError(404, "NOT_FOUND", "Provider account linking is not supported");
   });
   app.all("/v1/auth/*", async (context) => {
-    return dependencies.handleAuth
-      ? await dependencies.handleAuth(context.req.raw, context.env)
-      : await createAuth(context.env).handler(context.req.raw);
+    if (isRestrictedAuthFallback(context.req.path)) {
+      throw new PublicError(404, "NOT_FOUND", "Route not found");
+    }
+    return await forwardAuthRequest(context.req.raw, context.env);
   });
 
   app.post("/v1/native-auth/google/attempts", async (context) => {

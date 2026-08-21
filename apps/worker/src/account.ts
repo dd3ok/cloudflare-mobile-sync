@@ -3,6 +3,7 @@ import {
   type AccountResponse,
   accountDeletionOutcomeSchema,
 } from "@cloudflare-mobile-sync/api-contract";
+import { sha256Hex } from "./crypto";
 
 export interface AuthenticatedUser {
   id: string;
@@ -89,11 +90,6 @@ export async function deleteAccountData(
 }
 
 const DELETION_RECEIPT_TTL_MILLISECONDS = 7 * 24 * 60 * 60 * 1_000;
-
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
 
 function deletionOutcome(
   operationId: string,

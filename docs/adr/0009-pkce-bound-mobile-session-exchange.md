@@ -80,14 +80,15 @@ the temporary copy.
 
 ## Deployment isolation
 
-Byulsataro development, preview, and production have separate committed Worker
+A host app's development, preview, and production environments have separate Worker
 configurations, D1 bindings, rate-limit namespaces, exact app schemes,
 collection namespaces, public origins, Google OAuth clients, and Worker
-secrets. Development and preview keep schema-valid pending sentinels.
-Production was independently provisioned on 2026-08-18 and is marked ready only
-after remote D1 migration and secret-name preflight passed. Preflight fails
-before secret inspection while `deployment-readiness.json` lists any unresolved
-external resource. No pending configuration is deployable.
+secrets. Pending environments keep schema-valid sentinels and are not
+deployable. A maintainer production instance was independently provisioned on
+2026-08-18 and was marked ready only after remote D1 migration and secret-name
+preflight passed. Development and preview remained pending. Preflight fails
+before secret inspection while deployment metadata lists any unresolved
+external resource.
 
 ## Consequences
 

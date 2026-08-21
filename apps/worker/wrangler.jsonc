@@ -42,7 +42,7 @@
     }
   ],
   "vars": {
-    "ALLOWED_COLLECTIONS": "saved-readings-v1,app-settings-v1",
+    "ALLOWED_COLLECTIONS": "notes-v1,app-settings-v1",
     "BETTER_AUTH_URL": "https://sync.example.com",
     "GOOGLE_WEB_CLIENT_ID": "123456789-cloudflare-mobile-sync.apps.googleusercontent.com",
     "NATIVE_APPLICATION_ID": "com.example.cloudflaremobilesync",
