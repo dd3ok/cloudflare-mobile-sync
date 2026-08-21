@@ -23,6 +23,9 @@ ADR 0014 before changing authentication or deployment behavior.
   `0007_native_google_auth_attempt.sql`.
 - Provider token storage is deliberately absent. Account deletion must not call
   server-side Google revoke with a nonexistent access token.
+- Native hosts must use `revokeExpoSession`: revoke the exact authoritative
+  Better Auth session before clearing the Expo SecureStore cookie. Do not call
+  `authClient.signOut` directly for host logout.
 - Do not deploy, mutate Cloudflare/D1/Google resources, publish packages, or
   change repository visibility without explicit owner authorization.
 

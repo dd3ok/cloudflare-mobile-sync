@@ -43,6 +43,12 @@ The Worker does not implement JWT verification, OAuth code exchange, or cookie
 signing. Better Auth owns those primitives. The small nonce ledger adds replay
 state that Better Auth 1.6.23 does not persist.
 
+Native logout first performs an authoritative session read and revokes that
+exact D1-backed Better Auth session. Only after revocation succeeds does the
+Expo adapter clear its SecureStore cookie and native Google credential state.
+This ordering preserves a retry credential if server revocation fails and
+prevents a local-only logout from leaving a live server session.
+
 ## Module boundaries
 
 - `api-contract` owns portable runtime schemas and limits.

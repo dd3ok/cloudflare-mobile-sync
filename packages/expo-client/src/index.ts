@@ -17,6 +17,10 @@ export {
   type NativeGoogleCredentialProvider,
   type NativeGoogleSignInResult,
 } from "./native-google-auth";
+export {
+  type ExpoSessionRevocationClient,
+  revokeExpoSession,
+} from "./session-revocation";
 
 export interface ExpoAuthOptions {
   baseUrl: string;
