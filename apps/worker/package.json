@@ -13,6 +13,7 @@
     "types": "wrangler types"
   },
   "dependencies": {
+    "@better-auth/expo": "1.6.23",
     "@cloudflare-mobile-sync/api-contract": "workspace:*",
     "better-auth": "1.6.23",
     "hono": "4.12.34",

@@ -155,6 +155,51 @@ describe("Worker API", () => {
     ).toEqual(["com.example.myapp://", "https://app.example.com"]);
   });
 
+  it("accepts a trusted Expo origin for cookie-authenticated POST requests", async () => {
+    const auth = createAuth({
+      ...env,
+      BETTER_AUTH_SECRET: "0123456789abcdefghijklmnopqrstuvwxyz",
+      BETTER_AUTH_SECRETS: "1:0123456789abcdefghijklmnopqrstuvwxyz",
+      BETTER_AUTH_URL: "https://sync.example.test",
+      TRUSTED_ORIGINS: "com.example.myapp://",
+    });
+
+    const response = await auth.handler(
+      new Request("https://sync.example.test/v1/auth/sign-out", {
+        method: "POST",
+        headers: {
+          cookie: "better-auth.session_token=invalid-test-value",
+          "expo-origin": "com.example.myapp://",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ success: true });
+  });
+
+  it("rejects an untrusted Expo origin for cookie-authenticated POST requests", async () => {
+    const auth = createAuth({
+      ...env,
+      BETTER_AUTH_SECRET: "0123456789abcdefghijklmnopqrstuvwxyz",
+      BETTER_AUTH_SECRETS: "1:0123456789abcdefghijklmnopqrstuvwxyz",
+      BETTER_AUTH_URL: "https://sync.example.test",
+      TRUSTED_ORIGINS: "com.example.myapp://",
+    });
+
+    const response = await auth.handler(
+      new Request("https://sync.example.test/v1/auth/sign-out", {
+        method: "POST",
+        headers: {
+          cookie: "better-auth.session_token=invalid-test-value",
+          "expo-origin": "com.example.attacker://",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(403);
+  });
+
   it("does not persist attacker-controlled auth rate-limit keys in D1", async () => {
     const before = await env.DB.prepare(`SELECT COUNT(*) AS count FROM rateLimit`).first<number>(
       "count",

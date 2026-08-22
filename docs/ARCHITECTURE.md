@@ -39,6 +39,12 @@ data namespace.
    `(providerId = google, accountId = sub)` account and a D1 session.
 6. `@better-auth/expo` stores the service session cookie in SecureStore.
 
+Cookie-authenticated Expo POST requests send the application scheme in the
+`expo-origin` header. The Worker's official `@better-auth/expo` server plugin
+maps that value to `Origin` before Better Auth applies its exact
+`trustedOrigins` CSRF check. The plugin's browser authorization-proxy route is
+blocked at the Worker boundary because the active baseline is native-only.
+
 The Worker does not implement JWT verification, OAuth code exchange, or cookie
 signing. Better Auth owns those primitives. The small nonce ledger adds replay
 state that Better Auth 1.6.23 does not persist.

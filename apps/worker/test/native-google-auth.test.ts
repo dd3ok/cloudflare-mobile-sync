@@ -183,6 +183,7 @@ describe("native Google authentication guard", () => {
       "/v1/auth/callback//google",
       "/v1/auth/callback/%67oogle",
       "/v1/auth/link-social/",
+      "/v1/auth/expo-authorization-proxy",
     ];
 
     for (const path of restrictedPaths) {
