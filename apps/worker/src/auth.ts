@@ -1,4 +1,3 @@
-import { expo } from "@better-auth/expo";
 import { betterAuth } from "better-auth";
 import { commaSeparated, type Env } from "./env";
 
@@ -98,7 +97,6 @@ export function createAuth(env: Env) {
     secret: env.BETTER_AUTH_SECRET,
     ...(secrets.length > 0 ? { secrets } : {}),
     trustedOrigins: validateTrustedOrigins(env),
-    plugins: [expo()],
     socialProviders: {
       google: {
         clientId: env.GOOGLE_WEB_CLIENT_ID,

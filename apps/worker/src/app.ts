@@ -55,7 +55,6 @@ function isRestrictedAuthFallback(path: string): boolean {
   return (
     normalizedPath === "/v1/auth/sign-in/social" ||
     normalizedPath === "/v1/auth/link-social" ||
-    normalizedPath === "/v1/auth/expo-authorization-proxy" ||
     normalizedPath.startsWith("/v1/auth/callback/")
   );
 }

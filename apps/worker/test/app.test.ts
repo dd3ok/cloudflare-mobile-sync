@@ -68,9 +68,9 @@ function createTestAuth() {
 }
 
 async function seedTestAuthSession(auth: ReturnType<typeof createTestAuth>, suffix: string) {
-  const userId = `expo-origin-${suffix}-user`;
-  const sessionId = `expo-origin-${suffix}-session`;
-  const sessionToken = `expo-origin-${suffix}-token`;
+  const userId = `native-origin-${suffix}-user`;
+  const sessionId = `native-origin-${suffix}-session`;
+  const sessionToken = `native-origin-${suffix}-token`;
   const now = new Date();
   await seedUser(userId);
   await env.DB.prepare(
@@ -197,7 +197,7 @@ describe("Worker API", () => {
     ).toEqual(["com.example.myapp://", "https://app.example.com"]);
   });
 
-  it("revokes a D1 session from a trusted Expo origin", async () => {
+  it("revokes a D1 session from a trusted standard origin", async () => {
     const auth = createTestAuth();
     const session = await seedTestAuthSession(auth, "trusted");
 
@@ -207,7 +207,7 @@ describe("Worker API", () => {
         headers: {
           "content-type": "application/json",
           cookie: session.cookie,
-          "expo-origin": TEST_MOBILE_ORIGIN,
+          origin: TEST_MOBILE_ORIGIN,
         },
         body: JSON.stringify({ token: session.sessionToken }),
       }),
@@ -220,7 +220,7 @@ describe("Worker API", () => {
     ).toBeNull();
   });
 
-  it("preserves a D1 session when the Expo origin is untrusted", async () => {
+  it("preserves a D1 session when the standard origin is untrusted", async () => {
     const auth = createTestAuth();
     const session = await seedTestAuthSession(auth, "untrusted");
 
@@ -230,7 +230,31 @@ describe("Worker API", () => {
         headers: {
           "content-type": "application/json",
           cookie: session.cookie,
-          "expo-origin": "com.example.attacker://",
+          origin: "com.example.attacker://",
+        },
+        body: JSON.stringify({ token: session.sessionToken }),
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(
+      await env.DB.prepare(`SELECT id FROM session WHERE id = ?`)
+        .bind(session.sessionId)
+        .first<string>("id"),
+    ).toBe(session.sessionId);
+  });
+
+  it("preserves a D1 session when only the private Expo origin header is sent", async () => {
+    const auth = createTestAuth();
+    const session = await seedTestAuthSession(auth, "private-header");
+
+    const response = await auth.handler(
+      new Request("https://sync.example.test/v1/auth/revoke-session", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: session.cookie,
+          "expo-origin": TEST_MOBILE_ORIGIN,
         },
         body: JSON.stringify({ token: session.sessionToken }),
       }),
