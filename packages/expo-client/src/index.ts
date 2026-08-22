@@ -10,6 +10,7 @@ import { createAuthClient, type ReactAuthClient } from "better-auth/react";
 import * as SecureStore from "expo-secure-store";
 import { fetchWithTimeout } from "./fetch-with-timeout";
 import { validateMobileScheme } from "./mobile-scheme";
+import { promoteExpoOriginHeader } from "./origin-header";
 
 export {
   createNativeGoogleAuth,
@@ -32,6 +33,9 @@ export interface ExpoAuthOptions {
 type ExpoAuthClientConfiguration = {
   baseURL: string;
   basePath: string;
+  fetchOptions: {
+    onRequest(context: { headers: Headers }): void;
+  };
   plugins: [ReturnType<typeof expoClient>];
 };
 
@@ -49,6 +53,11 @@ export function createExpoAuthClient(
   return createAuthClient<ExpoAuthClientConfiguration>({
     baseURL: options.baseUrl,
     basePath: options.authPath ?? "/v1/auth",
+    fetchOptions: {
+      onRequest(context) {
+        promoteExpoOriginHeader(context.headers);
+      },
+    },
     plugins,
   });
 }

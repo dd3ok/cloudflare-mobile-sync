@@ -39,6 +39,14 @@ data namespace.
    `(providerId = google, accountId = sub)` account and a D1 session.
 6. `@better-auth/expo` stores the service session cookie in SecureStore.
 
+The official Expo client adapter initially represents the application scheme in
+its private `expo-origin` header. Before network dispatch, `expo-client`
+promotes that value to the standard `Origin` header and removes the private
+header. The platform-neutral Worker therefore receives the same standard
+contract from Expo, bare Android, Swift, Flutter, or other future clients, and
+Better Auth applies its exact `trustedOrigins` CSRF check without an Expo server
+plugin or Expo-only endpoint.
+
 The Worker does not implement JWT verification, OAuth code exchange, or cookie
 signing. Better Auth owns those primitives. The small nonce ledger adds replay
 state that Better Auth 1.6.23 does not persist.
@@ -54,7 +62,8 @@ prevents a local-only logout from leaving a live server session.
 - `api-contract` owns portable runtime schemas and limits.
 - `client-core` owns platform-neutral transport, retry, and sync state.
 - `expo-client` owns SecureStore session integration and a narrow
-  `NativeGoogleCredentialProvider` interface.
+  `NativeGoogleCredentialProvider` interface, including translation from the
+  official Expo adapter's private origin header to the standard HTTP contract.
 - The host app owns the selected native Credential Manager library and its Expo
   config plugin. Native-library types do not cross the adapter seam.
 - The Worker owns request validation, authorization, D1 persistence, and

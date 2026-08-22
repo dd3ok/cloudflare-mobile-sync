@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { LIMITS, type PullResponse, type PushResponse } from "@cloudflare-mobile-sync/api-contract";
+import { makeSignature } from "better-auth/crypto";
 import { describe, expect, it, vi } from "vitest";
 import { type AuthenticatedUser, deleteAccountData } from "../src/account";
 import { createApp } from "../src/app";
@@ -23,6 +24,7 @@ const RETAINED_RECORD_ID = "profile-lineage";
 const RETAINED_NAMESPACE = "test-namespace";
 const RETAINED_SCHEMA = "example.profile/v2";
 const DELETION_OPERATION_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const TEST_MOBILE_ORIGIN = "com.example.myapp://";
 
 async function authenticate(request: Request): Promise<AuthenticatedUser | null> {
   const id = request.headers.get("X-Test-User");
@@ -53,6 +55,46 @@ async function seedUser(id: string, email = `${id}@example.test`): Promise<void>
   )
     .bind(id, id, email, now, now)
     .run();
+}
+
+function createTestAuth() {
+  return createAuth({
+    ...env,
+    BETTER_AUTH_SECRET: "0123456789abcdefghijklmnopqrstuvwxyz",
+    BETTER_AUTH_SECRETS: "1:0123456789abcdefghijklmnopqrstuvwxyz",
+    BETTER_AUTH_URL: "https://sync.example.test",
+    TRUSTED_ORIGINS: TEST_MOBILE_ORIGIN,
+  });
+}
+
+async function seedTestAuthSession(auth: ReturnType<typeof createTestAuth>, suffix: string) {
+  const userId = `native-origin-${suffix}-user`;
+  const sessionId = `native-origin-${suffix}-session`;
+  const sessionToken = `native-origin-${suffix}-token`;
+  const now = new Date();
+  await seedUser(userId);
+  await env.DB.prepare(
+    `INSERT INTO session
+      (id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId)
+     VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)`,
+  )
+    .bind(
+      sessionId,
+      new Date(now.getTime() + 60 * 60 * 1_000).toISOString(),
+      sessionToken,
+      now.toISOString(),
+      now.toISOString(),
+      userId,
+    )
+    .run();
+
+  const context = await auth.$context;
+  const signature = await makeSignature(sessionToken, context.secret);
+  return {
+    sessionId,
+    sessionToken,
+    cookie: `${context.authCookies.sessionToken.name}=${sessionToken}.${signature}`,
+  };
 }
 
 async function apiRequest(
@@ -153,6 +195,77 @@ describe("Worker API", () => {
         TRUSTED_ORIGINS: "com.example.myapp://,https://app.example.com",
       }),
     ).toEqual(["com.example.myapp://", "https://app.example.com"]);
+  });
+
+  it("revokes a D1 session from a trusted standard origin", async () => {
+    const auth = createTestAuth();
+    const session = await seedTestAuthSession(auth, "trusted");
+
+    const response = await auth.handler(
+      new Request("https://sync.example.test/v1/auth/revoke-session", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: session.cookie,
+          origin: TEST_MOBILE_ORIGIN,
+        },
+        body: JSON.stringify({ token: session.sessionToken }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: true });
+    expect(
+      await env.DB.prepare(`SELECT id FROM session WHERE id = ?`).bind(session.sessionId).first(),
+    ).toBeNull();
+  });
+
+  it("preserves a D1 session when the standard origin is untrusted", async () => {
+    const auth = createTestAuth();
+    const session = await seedTestAuthSession(auth, "untrusted");
+
+    const response = await auth.handler(
+      new Request("https://sync.example.test/v1/auth/revoke-session", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: session.cookie,
+          origin: "com.example.attacker://",
+        },
+        body: JSON.stringify({ token: session.sessionToken }),
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(
+      await env.DB.prepare(`SELECT id FROM session WHERE id = ?`)
+        .bind(session.sessionId)
+        .first<string>("id"),
+    ).toBe(session.sessionId);
+  });
+
+  it("preserves a D1 session when only the private Expo origin header is sent", async () => {
+    const auth = createTestAuth();
+    const session = await seedTestAuthSession(auth, "private-header");
+
+    const response = await auth.handler(
+      new Request("https://sync.example.test/v1/auth/revoke-session", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: session.cookie,
+          "expo-origin": TEST_MOBILE_ORIGIN,
+        },
+        body: JSON.stringify({ token: session.sessionToken }),
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(
+      await env.DB.prepare(`SELECT id FROM session WHERE id = ?`)
+        .bind(session.sessionId)
+        .first<string>("id"),
+    ).toBe(session.sessionId);
   });
 
   it("does not persist attacker-controlled auth rate-limit keys in D1", async () => {
